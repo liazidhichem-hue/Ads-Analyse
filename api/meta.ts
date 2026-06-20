@@ -13,7 +13,7 @@ export default async function handler(req: any, res: any) {
     'spend','impressions','reach','frequency','cpm','ctr','cpc',
     'inline_link_clicks','inline_link_click_ctr',
     'outbound_clicks','actions','action_values',
-    'video_thruplay_watched_actions','video_3_sec_watched_actions'
+    'video_thruplay_watched_actions',''video_thruplay_watched_actions'
   ].join(',')
 
   const fields = `name,status,daily_budget,insights.date_preset(${date_preset}){${insightFields}}`
