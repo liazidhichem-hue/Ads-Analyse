@@ -41,18 +41,19 @@ export default async function handler(req: any, res: any) {
       const atc        = getAction(ins.actions || [], ['add_to_cart'])
       const purchases  = getAction(ins.actions || [], ['purchase'])
       const revenue    = getActionVal(ins.action_values || [], ['purchase'])
+      const v3sec      = getAction(ins.actions || [], ['video_view'])
       const thruplay   = parseFloat(ins.video_thruplay_watched_actions?.[0]?.value || 0)
       const roas       = spend > 0     ? revenue  / spend     : 0
       const cpr        = purchases > 0 ? spend    / purchases : 0
       const costPerATC = atc > 0       ? spend    / atc       : 0
-      const hookRate   = imps > 0      ? (thruplay / imps) * 100 : 0
+      const hookRate   = imps > 0      ? (v3sec   / imps) * 100 : 0
       return {
         id: c.id, name: c.name, status: c.status,
         daily_budget: c.daily_budget ? parseFloat(c.daily_budget) / 100 : null,
         spend, impressions: imps, reach, frequency: freq, cpm,
         ctr_all, ctr_link, cpc_link, clicks_link,
         lpv, atc, purchases, revenue, roas, cpr,
-        v3sec: thruplay, thruplay, hookRate, costPerATC
+        v3sec, thruplay, hookRate, costPerATC
       }
     })
 
@@ -61,7 +62,7 @@ export default async function handler(req: any, res: any) {
       spend: sum('spend'), impressions: sum('impressions'), reach: sum('reach'),
       clicks_link: sum('clicks_link'), lpv: sum('lpv'), atc: sum('atc'),
       purchases: sum('purchases'), revenue: sum('revenue'), thruplay: sum('thruplay'),
-      v3sec: sum('thruplay'),
+      v3sec: sum('v3sec'),
       budget_total: campaigns.reduce((a: number, c: any) => a + (c.daily_budget || 0), 0)
     }
     T.roas       = T.spend > 0       ? T.revenue     / T.spend       : 0
@@ -71,7 +72,7 @@ export default async function handler(req: any, res: any) {
     T.ctr_link   = T.ctr_all
     T.cpc_link   = T.clicks_link > 0 ? T.spend       / T.clicks_link : 0
     T.frequency  = T.reach > 0       ? T.impressions / T.reach       : 0
-    T.hookRate   = T.impressions > 0 ? (T.thruplay   / T.impressions) * 100 : 0
+    T.hookRate   = T.impressions > 0 ? (T.v3sec      / T.impressions) * 100 : 0
     T.costPerATC = T.atc > 0         ? T.spend       / T.atc         : 0
     T.costPerLPV = T.lpv > 0         ? T.spend       / T.lpv         : 0
 
