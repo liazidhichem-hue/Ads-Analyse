@@ -1,120 +1,170 @@
 declare const process: any;
 
+const GRAPH = 'https://graph.facebook.com/v19.0';
+
+const FIELDS = [
+  'spend', 'impressions', 'reach', 'frequency', 'cpm', 'cpc',
+  'actions', 'action_values',
+  'inline_link_clicks', 'inline_link_click_ctr', 'ctr',
+  'video_thruplay_watched_actions',
+].join(',');
+
+function act(arr: any[], type: string): number {
+  return parseFloat(arr?.find((x: any) => x.action_type === type)?.value || '0');
+}
+function val(arr: any[], type: string): number {
+  return parseFloat(arr?.find((x: any) => x.action_type === type)?.value || '0');
+}
+
+function parseIns(ins: any) {
+  if (!ins) ins = {};
+  const spend       = parseFloat(ins.spend || '0');
+  const impressions = parseInt(ins.impressions || '0');
+  const reach       = parseInt(ins.reach || '0');
+  const frequency   = parseFloat(ins.frequency || '0');
+  const cpm         = parseFloat(ins.cpm || '0');
+  const ctr_all     = parseFloat(ins.ctr || '0');
+  const ctr_link    = parseFloat(ins.inline_link_click_ctr || '0');
+  const clicks_link = parseInt(ins.inline_link_clicks || '0');
+  const acts        = ins.actions        || [];
+  const vals        = ins.action_values  || [];
+  const purchases   = act(acts, 'purchase');
+  const atc         = act(acts, 'add_to_cart');
+  const lpv         = act(acts, 'landing_page_view');
+  const videoViews  = act(acts, 'video_view');
+  const revenue     = val(vals, 'purchase');
+  const thruplay    = parseInt(ins.video_thruplay_watched_actions?.[0]?.value || '0');
+  const hookRate    = impressions > 0 ? (videoViews / impressions) * 100 : 0;
+  const cpr         = purchases > 0 ? spend / purchases : 0;
+  const roas        = spend > 0 ? revenue / spend : 0;
+  const cpc_link    = clicks_link > 0 ? spend / clicks_link : 0;
+  const costPerATC  = atc > 0 ? spend / atc : 0;
+  const costPerLPV  = lpv > 0 ? spend / lpv : 0;
+  return {
+    spend, impressions, reach, frequency, cpm, ctr_all, ctr_link,
+    clicks_link, cpc_link, purchases, atc, lpv, videoViews, revenue,
+    thruplay, hookRate, cpr, roas, costPerATC, costPerLPV,
+  };
+}
+
+async function gfetch(path: string): Promise<any> {
+  const r = await fetch(`${GRAPH}/${path}`);
+  return r.json();
+}
+
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  if (req.method === 'OPTIONS') { res.status(200).end(); return }
+  const token     = req.query.access_token  || process.env.META_ACCESS_TOKEN  || '';
+  const rawId     = req.query.ad_account_id || process.env.META_AD_ACCOUNT_ID || '';
+  const accountId = rawId.replace(/^act_/, '');
+  const preset    = req.query.date_preset   || 'last_7d';
 
-  const date_preset   = req.query.date_preset   || 'last_7d'
-  const AD_ACCOUNT_ID = req.query.ad_account_id || process.env.META_AD_ACCOUNT_ID || '884019833957409'
-  const ACCESS_TOKEN  = req.query.access_token  || process.env.META_ACCESS_TOKEN
-
-  if (!ACCESS_TOKEN) return res.status(401).json({ error: 'Token manquant' })
-
-  const insightFields = [
-    'spend','impressions','reach','frequency','cpm','ctr','cpc',
-    'inline_link_clicks','inline_link_click_ctr',
-    'outbound_clicks','actions','action_values',
-    'video_thruplay_watched_actions'
-  ].join(',')
-
-  // --- CAMPAIGNS ---
-  const campFields = `name,status,daily_budget,insights.date_preset(${date_preset}){${insightFields}}`
-  const campUrl = `https://graph.facebook.com/v19.0/act_${AD_ACCOUNT_ID}/campaigns?fields=${encodeURIComponent(campFields)}&access_token=${ACCESS_TOKEN}&limit=50`
-
-  // --- ADS ---
-  const adFields = `name,status,creative{thumbnail_url,title},insights.date_preset(${date_preset}){${insightFields}}`
-  const adUrl = `https://graph.facebook.com/v19.0/act_${AD_ACCOUNT_ID}/ads?fields=${encodeURIComponent(adFields)}&access_token=${ACCESS_TOKEN}&limit=50`
+  if (!token)
+    return res.status(400).json({ error: 'Token manquant — configurez-le dans ⚙️ Paramètres.' });
+  if (!accountId)
+    return res.status(400).json({ error: 'Ad Account ID manquant — configurez-le dans ⚙️ Paramètres.' });
 
   try {
-    const [campRes, adRes] = await Promise.all([fetch(campUrl), fetch(adUrl)])
-    const [campJson, adJson] = await Promise.all([campRes.json(), adRes.json()])
+    // ─── 1. Campaigns ────────────────────────────────────────────────────────
+    const campListRaw = await gfetch(
+      `act_${accountId}/campaigns?fields=id,name,status,daily_budget&access_token=${token}&limit=50`
+    );
+    if (campListRaw.error) throw new Error(campListRaw.error.message);
 
-    if (campJson.error) return res.status(400).json({ error: campJson.error.message })
+    const campaigns = await Promise.all(
+      (campListRaw.data || []).map(async (c: any) => {
+        const insRaw = await gfetch(
+          `${c.id}/insights?fields=${FIELDS}&date_preset=${preset}&access_token=${token}`
+        );
+        const p = parseIns(insRaw.data?.[0]);
+        return {
+          id: c.id, name: c.name, status: c.status,
+          daily_budget: c.daily_budget ? parseFloat(c.daily_budget) / 100 : 0,
+          ...p,
+        };
+      })
+    );
 
-    // Parse helper
-    const parseInsight = (ins: any) => {
-      const spend      = parseFloat(ins.spend || 0)
-      const imps       = parseFloat(ins.impressions || 0)
-      const reach      = parseFloat(ins.reach || 0)
-      const freq       = parseFloat(ins.frequency || 0)
-      const cpm        = parseFloat(ins.cpm || 0)
-      const ctr_all    = parseFloat(ins.ctr || 0)
-      const ctr_link   = parseFloat(ins.inline_link_click_ctr || ins.ctr || 0)
-      const cpc_link   = parseFloat(ins.cpc || 0)
-      const clicks_link= parseFloat(ins.inline_link_clicks?.[0]?.value || ins.outbound_clicks?.[0]?.value || 0)
-      const lpv        = getAction(ins.actions || [], ['landing_page_view'])
-      const atc        = getAction(ins.actions || [], ['add_to_cart'])
-      const purchases  = getAction(ins.actions || [], ['purchase'])
-      const revenue    = getActionVal(ins.action_values || [], ['purchase'])
-      const v3sec      = getAction(ins.actions || [], ['video_view'])
-      const thruplay   = parseFloat(ins.video_thruplay_watched_actions?.[0]?.value || 0)
-      const roas       = spend > 0     ? revenue  / spend     : 0
-      const cpr        = purchases > 0 ? spend    / purchases : 0
-      const costPerATC = atc > 0       ? spend    / atc       : 0
-      const hookRate   = imps > 0      ? (v3sec   / imps) * 100 : 0
-      return { spend, impressions: imps, reach, frequency: freq, cpm,
-               ctr_all, ctr_link, cpc_link, clicks_link, lpv, atc,
-               purchases, revenue, roas, cpr, v3sec, thruplay, hookRate, costPerATC }
-    }
+    // ─── 2. Ads ──────────────────────────────────────────────────────────────
+    const adListRaw = await gfetch(
+      `act_${accountId}/ads?fields=id,name,status&access_token=${token}&limit=100`
+    );
+    if (adListRaw.error) throw new Error(adListRaw.error.message);
 
-    const campaigns = (campJson.data || []).map((c: any) => {
-      const ins = c.insights?.data?.[0] || {}
+    const ads = await Promise.all(
+      (adListRaw.data || []).map(async (a: any) => {
+        const insRaw = await gfetch(
+          `${a.id}/insights?fields=${FIELDS}&date_preset=${preset}&access_token=${token}`
+        );
+        const p = parseIns(insRaw.data?.[0]);
+        return { id: a.id, name: a.name, status: a.status || 'ACTIVE', ...p };
+      })
+    );
+
+    // ─── 3. Daily breakdown — THE FIX (time_increment=1 pour Historique) ─────
+    const dailyRaw = await gfetch(
+      `act_${accountId}/insights` +
+      `?fields=spend,impressions,actions,action_values` +
+      `&date_preset=${preset}` +
+      `&time_increment=1` +
+      `&access_token=${token}`
+    );
+
+    const daily = (dailyRaw.data || []).map((d: any) => {
+      const spend       = parseFloat(d.spend || '0');
+      const acts        = d.actions       || [];
+      const vals        = d.action_values || [];
+      const purchases   = act(acts, 'purchase');
+      const revenue     = val(vals, 'purchase');
+      const impressions = parseInt(d.impressions || '0');
+      const cpr         = purchases > 0 ? spend / purchases : 0;
+      const roas        = spend > 0 ? revenue / spend : 0;
       return {
-        id: c.id, name: c.name, status: c.status,
-        daily_budget: c.daily_budget ? parseFloat(c.daily_budget) / 100 : null,
-        ...parseInsight(ins)
-      }
-    })
+        date:        (d.date_start || '').slice(5),   // format "MM-DD"
+        spend:       +spend.toFixed(2),
+        purchases,
+        impressions,
+        cpr:         +cpr.toFixed(2),
+        roas:        +roas.toFixed(2),
+      };
+    });
 
-    const ads = (adJson.data || []).map((a: any) => {
-      const ins = a.insights?.data?.[0] || {}
-      return {
-        id: a.id, name: a.name, status: a.status,
-        thumbnail: a.creative?.thumbnail_url || '',
-        title: a.creative?.title || a.name,
-        ...parseInsight(ins)
-      }
-    })
+    // ─── 4. Totals ───────────────────────────────────────────────────────────
+    const zero = {
+      spend: 0, purchases: 0, revenue: 0, impressions: 0,
+      reach: 0, atc: 0, lpv: 0, clicks_link: 0,
+      thruplay: 0, budget_total: 0, videoViews: 0,
+    };
+    const sum = campaigns.reduce((acc: any, c: any) => ({
+      spend:        acc.spend        + c.spend,
+      purchases:    acc.purchases    + c.purchases,
+      revenue:      acc.revenue      + c.revenue,
+      impressions:  acc.impressions  + c.impressions,
+      reach:        acc.reach        + c.reach,
+      atc:          acc.atc          + c.atc,
+      lpv:          acc.lpv          + c.lpv,
+      clicks_link:  acc.clicks_link  + c.clicks_link,
+      thruplay:     acc.thruplay     + c.thruplay,
+      budget_total: acc.budget_total + (c.daily_budget || 0),
+      videoViews:   acc.videoViews   + c.videoViews,
+    }), zero);
 
-    const sum = (arr: any[], k: string) => arr.reduce((acc: number, c: any) => acc + (c[k] || 0), 0)
-    const T: any = {
-      spend: sum(campaigns,'spend'), impressions: sum(campaigns,'impressions'),
-      reach: sum(campaigns,'reach'), clicks_link: sum(campaigns,'clicks_link'),
-      lpv: sum(campaigns,'lpv'), atc: sum(campaigns,'atc'),
-      purchases: sum(campaigns,'purchases'), revenue: sum(campaigns,'revenue'),
-      thruplay: sum(campaigns,'thruplay'), v3sec: sum(campaigns,'v3sec'),
-      budget_total: campaigns.reduce((a: number, c: any) => a + (c.daily_budget || 0), 0)
-    }
-    T.roas       = T.spend > 0       ? T.revenue     / T.spend       : 0
-    T.cpr        = T.purchases > 0   ? T.spend       / T.purchases   : 0
-    T.cpm        = T.impressions > 0 ? (T.spend      / T.impressions) * 1000 : 0
-    T.ctr_all    = T.impressions > 0 ? (T.clicks_link/ T.impressions) * 100  : 0
-    T.ctr_link   = T.ctr_all
-    T.cpc_link   = T.clicks_link > 0 ? T.spend       / T.clicks_link : 0
-    T.frequency  = T.reach > 0       ? T.impressions / T.reach       : 0
-    T.hookRate   = T.impressions > 0 ? (T.v3sec      / T.impressions) * 100 : 0
-    T.costPerATC = T.atc > 0         ? T.spend       / T.atc         : 0
-    T.costPerLPV = T.lpv > 0         ? T.spend       / T.lpv         : 0
+    const totals = {
+      ...sum,
+      cpr:        sum.purchases   > 0 ? sum.spend / sum.purchases   : 0,
+      roas:       sum.spend       > 0 ? sum.revenue / sum.spend     : 0,
+      cpm:        sum.impressions > 0 ? (sum.spend / sum.impressions) * 1000 : 0,
+      ctr_link:   sum.impressions > 0 ? (sum.clicks_link / sum.impressions) * 100 : 0,
+      frequency:  campaigns.length > 0
+                    ? campaigns.reduce((a: any, c: any) => a + c.frequency, 0) / campaigns.length
+                    : 0,
+      hookRate:   sum.impressions > 0 ? (sum.videoViews / sum.impressions) * 100 : 0,
+      costPerATC: sum.atc > 0 ? sum.spend / sum.atc : 0,
+      costPerLPV: sum.lpv > 0 ? sum.spend / sum.lpv : 0,
+    };
 
-    return res.json({ campaigns, totals: T, ads, daily: [] })
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message })
+    return res.status(200).json({ totals, campaigns, ads, daily });
+
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message || 'Erreur serveur inattendue.' });
   }
-}
-
-function getAction(actions: any[], types: string[]): number {
-  for (const t of types) {
-    const f = actions.find((a: any) => a.action_type === t || a.action_type === `offsite_conversion.fb_pixel_${t}`)
-    if (f) return parseFloat(f.value || 0)
-  }
-  return 0
-}
-
-function getActionVal(vals: any[], types: string[]): number {
-  for (const t of types) {
-    const f = vals.find((a: any) => a.action_type === t || a.action_type === `offsite_conversion.fb_pixel_${t}`)
-    if (f) return parseFloat(f.value || 0)
-  }
-  return 0
 }
