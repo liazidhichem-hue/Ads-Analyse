@@ -51,11 +51,10 @@ async function gfetch(url: string): Promise<any> {
   const r = await fetch(url);
   const txt = await r.text();
   try { return JSON.parse(txt); }
-  catch { throw new Error(`Meta API parse error: ${txt.slice(0, 300)}`); }
+  catch { throw new Error(`Meta API error: ${txt.slice(0, 300)}`); }
 }
 
 export default async function handler(req: any, res: any) {
-  // ─── CORS ────────────────────────────────────────────────────────────────
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -66,31 +65,20 @@ export default async function handler(req: any, res: any) {
   const accountId = rawId.replace(/^act_/, '');
   const preset    = req.query.date_preset   || 'last_7d';
 
-  if (!token)
-    return res.status(400).json({ error: 'Token manquant — configurez-le dans ⚙️ Paramètres.' });
-  if (!accountId)
-    return res.status(400).json({ error: 'Ad Account ID manquant — configurez-le dans ⚙️ Paramètres.' });
+  if (!token)     return res.status(400).json({ error: 'Token manquant — configurez-le dans Param\u00e8tres.' });
+  if (!accountId) return res.status(400).json({ error: 'Ad Account ID manquant.' });
 
   const base = `${GRAPH}/act_${accountId}`;
   const tk   = `access_token=${token}`;
 
   try {
-    // ─── 5 APPELS EN PARALLÈLE — ~1s au lieu de 20s+ séquentiels ────────────
+    // 5 appels en PARALLELE
     const [campIns, campList, adIns, adList, dailyRaw] = await Promise.all([
-
-      // 1️⃣ Toutes les insights campaign en 1 seul appel
       gfetch(`${base}/insights?level=campaign&fields=campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=50`),
-
-      // 2️⃣ Status + budget des campaigns
       gfetch(`${base}/campaigns?fields=id,status,daily_budget&${tk}&limit=50`),
-
-      // 3️⃣ Toutes les insights ad en 1 seul appel
       gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=100`),
-
-      // 4️⃣ Status des ads
-      gfetch(`${base}/ads?fields=id,status&${tk}&limit=100`),
-
-      // 5️⃣ Daily breakdown pour Historique (time_increment=1)
+      // ← thumbnail_url recupere la miniature de chaque pub
+      gfetch(`${base}/ads?fields=id,status,adcreatives{thumbnail_url,object_type}&${tk}&limit=100`),
       gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&date_preset=${preset}&time_increment=1&${tk}`),
     ]);
 
@@ -99,41 +87,39 @@ export default async function handler(req: any, res: any) {
     if (adList.error)   throw new Error(adList.error.message);
     if (adIns.error)    throw new Error(adIns.error.message);
 
-    // ─── Lookup maps ─────────────────────────────────────────────────────────
+    // Maps lookup
     const cMeta: Record<string, any> = {};
     for (const c of (campList.data || []))
       cMeta[c.id] = { status: c.status, daily_budget: c.daily_budget ? parseFloat(c.daily_budget) / 100 : 0 };
 
     const aMeta: Record<string, any> = {};
-    for (const a of (adList.data || []))
-      aMeta[a.id] = { status: a.status };
+    for (const a of (adList.data || [])) {
+      // Recupere la miniature du premier creatif
+      const thumbnail = a.adcreatives?.data?.[0]?.thumbnail_url || null;
+      aMeta[a.id] = { status: a.status, thumbnail };
+    }
 
-    // ─── Campaigns ───────────────────────────────────────────────────────────
+    // Campaigns
     const campaigns = (campIns.data || []).map((row: any) => {
       const p = parseIns(row);
       const m = cMeta[row.campaign_id] || {};
-      return {
-        id:           row.campaign_id,
-        name:         row.campaign_name || row.campaign_id,
-        status:       m.status       || 'UNKNOWN',
-        daily_budget: m.daily_budget || 0,
-        ...p,
-      };
+      return { id: row.campaign_id, name: row.campaign_name || row.campaign_id, status: m.status || 'UNKNOWN', daily_budget: m.daily_budget || 0, ...p };
     });
 
-    // ─── Ads ─────────────────────────────────────────────────────────────────
+    // Ads — avec thumbnail
     const ads = (adIns.data || []).map((row: any) => {
       const p = parseIns(row);
       const m = aMeta[row.ad_id] || {};
       return {
-        id:     row.ad_id,
-        name:   row.ad_name || row.ad_id,
-        status: m.status || 'ACTIVE',
+        id:        row.ad_id,
+        name:      row.ad_name || row.ad_id,
+        status:    m.status    || 'ACTIVE',
+        thumbnail: m.thumbnail || null,   // URL image/video
         ...p,
       };
     });
 
-    // ─── Daily breakdown (pour les courbes Historique) ────────────────────────
+    // Daily (courbes Historique)
     const daily = (dailyRaw.data || []).map((d: any) => {
       const spend       = parseFloat(d.spend || '0');
       const acts        = d.actions       || [];
@@ -143,23 +129,12 @@ export default async function handler(req: any, res: any) {
       const impressions = parseInt(d.impressions || '0');
       const cpr         = purchases > 0 ? spend / purchases : 0;
       const roas        = spend     > 0 ? revenue / spend   : 0;
-      return {
-        date:        (d.date_start || '').slice(5),  // MM-DD
-        spend:       +spend.toFixed(2),
-        purchases,
-        impressions,
-        cpr:         +cpr.toFixed(2),
-        roas:        +roas.toFixed(2),
-      };
+      return { date: (d.date_start || '').slice(5), spend: +spend.toFixed(2), purchases, impressions, cpr: +cpr.toFixed(2), roas: +roas.toFixed(2) };
     });
 
-    // ─── Totals ───────────────────────────────────────────────────────────────
-    const zero = {
-      spend:0, purchases:0, revenue:0, impressions:0,
-      reach:0, atc:0, lpv:0, clicks_link:0,
-      thruplay:0, budget_total:0, videoViews:0,
-    };
-    const sum = campaigns.reduce((acc: any, c: any) => ({
+    // Totals
+    const zero = { spend:0,purchases:0,revenue:0,impressions:0,reach:0,atc:0,lpv:0,clicks_link:0,thruplay:0,budget_total:0,videoViews:0 };
+    const sum  = campaigns.reduce((acc: any, c: any) => ({
       spend:        acc.spend        + c.spend,
       purchases:    acc.purchases    + c.purchases,
       revenue:      acc.revenue      + c.revenue,
@@ -179,9 +154,7 @@ export default async function handler(req: any, res: any) {
       roas:       sum.spend       > 0 ? sum.revenue / sum.spend     : 0,
       cpm:        sum.impressions > 0 ? (sum.spend / sum.impressions) * 1000 : 0,
       ctr_link:   sum.impressions > 0 ? (sum.clicks_link / sum.impressions) * 100 : 0,
-      frequency:  campaigns.length > 0
-                    ? campaigns.reduce((a: any, c: any) => a + c.frequency, 0) / campaigns.length
-                    : 0,
+      frequency:  campaigns.length > 0 ? campaigns.reduce((a: any,c: any) => a + c.frequency, 0) / campaigns.length : 0,
       hookRate:   sum.impressions > 0 ? (sum.videoViews / sum.impressions) * 100 : 0,
       costPerATC: sum.atc > 0 ? sum.spend / sum.atc : 0,
       costPerLPV: sum.lpv > 0 ? sum.spend / sum.lpv : 0,
@@ -190,6 +163,6 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ totals, campaigns, ads, daily });
 
   } catch (e: any) {
-    return res.status(500).json({ error: e.message || 'Erreur serveur inattendue.' });
+    return res.status(500).json({ error: e.message || 'Erreur serveur.' });
   }
 }
