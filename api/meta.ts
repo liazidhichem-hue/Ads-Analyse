@@ -18,16 +18,22 @@ export default async function handler(req: any, res: any) {
     'video_thruplay_watched_actions'
   ].join(',')
 
-  const fields = `name,status,daily_budget,insights.date_preset(${date_preset}){${insightFields}}`
-  const url = `https://graph.facebook.com/v19.0/act_${AD_ACCOUNT_ID}/campaigns?fields=${encodeURIComponent(fields)}&access_token=${ACCESS_TOKEN}&limit=50`
+  // --- CAMPAIGNS ---
+  const campFields = `name,status,daily_budget,insights.date_preset(${date_preset}){${insightFields}}`
+  const campUrl = `https://graph.facebook.com/v19.0/act_${AD_ACCOUNT_ID}/campaigns?fields=${encodeURIComponent(campFields)}&access_token=${ACCESS_TOKEN}&limit=50`
+
+  // --- ADS ---
+  const adFields = `name,status,creative{thumbnail_url,title},insights.date_preset(${date_preset}){${insightFields}}`
+  const adUrl = `https://graph.facebook.com/v19.0/act_${AD_ACCOUNT_ID}/ads?fields=${encodeURIComponent(adFields)}&access_token=${ACCESS_TOKEN}&limit=50`
 
   try {
-    const r = await fetch(url)
-    const j = await r.json()
-    if (j.error) return res.status(400).json({ error: j.error.message })
+    const [campRes, adRes] = await Promise.all([fetch(campUrl), fetch(adUrl)])
+    const [campJson, adJson] = await Promise.all([campRes.json(), adRes.json()])
 
-    const campaigns = (j.data || []).map((c: any) => {
-      const ins        = c.insights?.data?.[0] || {}
+    if (campJson.error) return res.status(400).json({ error: campJson.error.message })
+
+    // Parse helper
+    const parseInsight = (ins: any) => {
       const spend      = parseFloat(ins.spend || 0)
       const imps       = parseFloat(ins.impressions || 0)
       const reach      = parseFloat(ins.reach || 0)
@@ -47,22 +53,37 @@ export default async function handler(req: any, res: any) {
       const cpr        = purchases > 0 ? spend    / purchases : 0
       const costPerATC = atc > 0       ? spend    / atc       : 0
       const hookRate   = imps > 0      ? (v3sec   / imps) * 100 : 0
+      return { spend, impressions: imps, reach, frequency: freq, cpm,
+               ctr_all, ctr_link, cpc_link, clicks_link, lpv, atc,
+               purchases, revenue, roas, cpr, v3sec, thruplay, hookRate, costPerATC }
+    }
+
+    const campaigns = (campJson.data || []).map((c: any) => {
+      const ins = c.insights?.data?.[0] || {}
       return {
         id: c.id, name: c.name, status: c.status,
         daily_budget: c.daily_budget ? parseFloat(c.daily_budget) / 100 : null,
-        spend, impressions: imps, reach, frequency: freq, cpm,
-        ctr_all, ctr_link, cpc_link, clicks_link,
-        lpv, atc, purchases, revenue, roas, cpr,
-        v3sec, thruplay, hookRate, costPerATC
+        ...parseInsight(ins)
       }
     })
 
-    const sum = (k: string) => campaigns.reduce((a: number, c: any) => a + (c[k] || 0), 0)
+    const ads = (adJson.data || []).map((a: any) => {
+      const ins = a.insights?.data?.[0] || {}
+      return {
+        id: a.id, name: a.name, status: a.status,
+        thumbnail: a.creative?.thumbnail_url || '',
+        title: a.creative?.title || a.name,
+        ...parseInsight(ins)
+      }
+    })
+
+    const sum = (arr: any[], k: string) => arr.reduce((acc: number, c: any) => acc + (c[k] || 0), 0)
     const T: any = {
-      spend: sum('spend'), impressions: sum('impressions'), reach: sum('reach'),
-      clicks_link: sum('clicks_link'), lpv: sum('lpv'), atc: sum('atc'),
-      purchases: sum('purchases'), revenue: sum('revenue'), thruplay: sum('thruplay'),
-      v3sec: sum('v3sec'),
+      spend: sum(campaigns,'spend'), impressions: sum(campaigns,'impressions'),
+      reach: sum(campaigns,'reach'), clicks_link: sum(campaigns,'clicks_link'),
+      lpv: sum(campaigns,'lpv'), atc: sum(campaigns,'atc'),
+      purchases: sum(campaigns,'purchases'), revenue: sum(campaigns,'revenue'),
+      thruplay: sum(campaigns,'thruplay'), v3sec: sum(campaigns,'v3sec'),
       budget_total: campaigns.reduce((a: number, c: any) => a + (c.daily_budget || 0), 0)
     }
     T.roas       = T.spend > 0       ? T.revenue     / T.spend       : 0
@@ -76,7 +97,7 @@ export default async function handler(req: any, res: any) {
     T.costPerATC = T.atc > 0         ? T.spend       / T.atc         : 0
     T.costPerLPV = T.lpv > 0         ? T.spend       / T.lpv         : 0
 
-    return res.json({ campaigns, totals: T, ads: [], daily: [] })
+    return res.json({ campaigns, totals: T, ads, daily: [] })
   } catch (err: any) {
     return res.status(500).json({ error: err.message })
   }
