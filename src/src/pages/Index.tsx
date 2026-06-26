@@ -258,84 +258,138 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
       ))}
     </div>
   )
-}
+  function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
+  const hookColor = a.hookRate > 25 ? '#10b981' : a.hookRate > 15 ? '#f59e0b' : '#ef4444'
+  const roasColor = a.roas > 10 ? '#10b981' : a.roas > 5 ? '#f59e0b' : '#ef4444'
+  const cprColor  = a.cpr < 1.5 ? '#10b981' : a.cpr < 3 ? '#f59e0b' : '#ef4444'
 
-function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const t = data.totals
-  
-  const steps = [
-    { label: 'Clics lien', value: t.clicks_link, bg: 'bg-[#fbcfe8]', darkBg: 'dark:bg-[#fbcfe8]', wTop: 100, wBottom: 85 },
-    { label: 'Vues page', value: t.lpv, bg: 'bg-[#f9a8d4]', darkBg: 'dark:bg-[#f9a8d4]', wTop: 82, wBottom: 67 },
-    { label: 'Ajouts Panier', value: t.atc, bg: 'bg-[#f472b6]', darkBg: 'dark:bg-[#f472b6]', wTop: 64, wBottom: 49 },
-    { label: 'Achats', value: t.purchases, bg: 'bg-[#ec4899]', darkBg: 'dark:bg-[#ec4899]', wTop: 46, wBottom: 31 },
-  ]
+  const r = 38
+  const circ = 2 * Math.PI * r
+  const hookDash = Math.min(a.hookRate / 60, 1) * circ
 
-  const metrics = [
-    { label: 'Taux ATC', value: `${fmt((t.atc / Math.max(t.lpv, 1)) * 100)}%` },
-    { label: 'Abandon (ATC - Achats)', value: t.atc - t.purchases },
-    { label: 'Taux Conversion', value: `${fmt((t.purchases / Math.max(t.lpv, 1)) * 100)}%` },
-    { label: 'Coût / ATC', value: `$${fmt(t.costPerATC)}` },
-    { label: 'Coût / LPV', value: `$${fmt(t.costPerLPV)}` },
-  ]
+  const bg = dark ? '#0f172a' : '#f1f5f9'
+  const track = dark ? '#1e293b' : '#e2e8f0'
 
   return (
-    <div className={`rounded-xl p-8 border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
-      <div className="flex justify-center mb-16 mt-8 overflow-hidden">
-        <div className="flex flex-col w-full max-w-4xl mx-auto relative gap-2 py-4">
-          {/* Global Right Arrow Line (Downwards) */}
-          <div className={`absolute right-[5%] sm:right-[15%] top-4 bottom-4 w-[1.5px] ${dark ? 'bg-gray-600' : 'bg-gray-800'} hidden sm:block`}>
-            <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 border-b-[1.5px] border-r-[1.5px] ${dark ? 'border-gray-600' : 'border-gray-800'} rotate-45`}></div>
+    <div className="p-4 flex items-center gap-4" style={{ background: bg }}>
+      {/* Hook Rate Gauge */}
+      <div className="shrink-0">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r={r} fill="none" stroke={track} strokeWidth="7" />
+          <circle
+            cx="50" cy="50" r={r}
+            fill="none"
+            stroke={hookColor}
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={`${hookDash} ${circ}`}
+            transform="rotate(-90 50 50)"
+            style={{ transition: 'stroke-dasharray 0.6s ease' }}
+          />
+          <text x="50" y="46" textAnchor="middle" fill={hookColor} fontSize="13" fontWeight="800">
+            {a.hookRate.toFixed(1)}%
+          </text>
+          <text x="50" y="60" textAnchor="middle" fill={dark ? '#64748b' : '#94a3b8'} fontSize="8" fontWeight="500">
+            HOOK RATE
+          </text>
+        </svg>
+      </div>
+
+      {/* Bars: ROAS / CPR / ThruPlay */}
+      <div className="flex-1 space-y-3">
+        {/* ROAS */}
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-slate-400' : 'text-slate-500'}`}>ROAS</span>
+            <span className="text-[11px] font-bold" style={{ color: roasColor }}>{a.roas.toFixed(1)}x</span>
           </div>
-
-          {steps.map((s, i) => {
-            const prevValue = i > 0 ? steps[i - 1].value : null;
-            const convRate = prevValue ? ((s.value / Math.max(prevValue, 1)) * 100) : null;
-
-            return (
-              <div key={i} className="w-full flex h-16 sm:h-20 relative">
-                {/* Left area: Label + Arrow */}
-                <div className="w-[35%] flex items-center justify-end pr-2 sm:pr-6">
-                  <span className={`text-xs sm:text-base font-medium mr-2 sm:mr-4 text-right ${dark ? 'text-gray-200' : 'text-gray-900'}`}>{s.label}</span>
-                  <div className={`w-8 sm:w-16 h-[1.5px] ${dark ? 'bg-gray-400' : 'bg-gray-800'} relative`}>
-                     <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 border-t-[1.5px] border-r-[1.5px] ${dark ? 'border-gray-400' : 'border-gray-800'} rotate-45`}></div>
-                  </div>
-                </div>
-
-                {/* Center area: Funnel block */}
-                <div className="w-[40%] sm:w-[30%] relative flex items-center justify-center">
-                  <div 
-                    className={`absolute inset-0 w-full h-full ${s.bg} ${s.darkBg}`}
-                    style={{ 
-                      clipPath: `polygon(${ (100 - s.wTop)/2 }% 0, ${ 100 - (100 - s.wTop)/2 }% 0, ${ 100 - (100 - s.wBottom)/2 }% 100%, ${ (100 - s.wBottom)/2 }% 100%)`
-                    }}
-                  />
-                  <span className="relative z-10 text-gray-900 font-bold text-lg sm:text-xl drop-shadow-sm">{fmtN(s.value)}</span>
-                </div>
-
-                {/* Right area: Conversion rates */}
-                <div className="w-[25%] sm:w-[35%] flex items-start sm:items-center pl-4 sm:pl-8 relative">
-                  {i > 0 && (
-                    <div className="absolute -top-9 sm:-top-11 left-2 sm:left-6">
-                      <div className={`text-[10px] sm:text-xs font-bold px-2 py-1 rounded-full border ${dark ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                        {fmt(convRate)}%
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          <div className="h-1.5 rounded-full" style={{ background: track }}>
+            <div
+              className="h-1.5 rounded-full"
+              style={{ width: `${Math.min(a.roas / 20 * 100, 100)}%`, background: roasColor, transition: 'width 0.6s ease' }}
+            />
+          </div>
+        </div>
+        {/* CPR */}
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-slate-400' : 'text-slate-500'}`}>CPR</span>
+            <span className="text-[11px] font-bold" style={{ color: cprColor }}>${a.cpr.toFixed(2)}</span>
+          </div>
+          <div className="h-1.5 rounded-full" style={{ background: track }}>
+            <div
+              className="h-1.5 rounded-full"
+              style={{ width: `${Math.max(Math.min((1 - a.cpr / 8) * 100, 100), 5)}%`, background: cprColor, transition: 'width 0.6s ease' }}
+            />
+          </div>
+        </div>
+        {/* ThruPlay */}
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-slate-400' : 'text-slate-500'}`}>ThruPlay</span>
+            <span className={`text-[11px] font-bold ${dark ? 'text-slate-300' : 'text-slate-600'}`}>{fmtN(a.thruplay)}</span>
+          </div>
+          <div className="h-1.5 rounded-full" style={{ background: track }}>
+            <div
+              className="h-1.5 rounded-full bg-blue-400"
+              style={{ width: `${Math.min(a.thruplay / 6000 * 100, 100)}%`, transition: 'width 0.6s ease' }}
+            />
+          </div>
         </div>
       </div>
+    </div>
+  )
+}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-8 border-t border-gray-200 dark:border-gray-700">
-        {metrics.map((m, i) => (
-          <div key={i} className="text-center">
-            <div className={`text-xs uppercase tracking-wider mb-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{m.label}</div>
-            <div className={`text-xl sm:text-2xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>{m.value}</div>
-          </div>
-        ))}
+function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
+  const sortedAds = [...(data.ads || [])].sort((a, b) => b.roas - a.roas)
+
+  if (sortedAds.length === 0) {
+    return (
+      <div className={`rounded-xl p-12 text-center border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
+        <div className="text-4xl mb-4">🎨</div>
+        <h3 className={`text-xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Aucun créatif actif</h3>
+        <p className={`mt-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Les données créatives apparaîtront ici une fois les publicités lancées.</p>
       </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {sortedAds.map((a: Ad) => (
+        <div key={a.id} className={`rounded-xl overflow-hidden border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm flex flex-col`}>
+
+          {/* ── Chart Zone (remplace la photo) ── */}
+          <div className="border-b" style={{ borderColor: dark ? '#1e293b' : '#f1f5f9' }}>
+            <AdPerformanceChart a={a} dark={dark} />
+          </div>
+
+          {/* Badge + Name */}
+          <div className="px-4 pt-3 pb-1 flex items-center gap-2">
+            <StatusBadge status={a.status} />
+            {a.roas > 10 && <span className="text-yellow-400 text-xs">⭐ Top</span>}
+          </div>
+
+          <div className="px-4 pb-4 flex-1 flex flex-col">
+            <h4 className={`font-bold text-sm mb-4 truncate ${dark ? 'text-white' : 'text-gray-900'}`}>{a.name}</h4>
+
+            <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-auto text-sm">
+              {[['Spend', `$${fmt(a.spend)}`],
+                ['Impressions', fmtN(a.impressions)],
+                ['ATC', fmtN(a.atc)],
+                ['Coût/ATC', `$${fmt(a.spend / Math.max(a.atc, 1))}`],
+                ['Achats', fmtN(a.purchases)],
+                ['CTR', `${fmt(a.ctr_link)}%`],
+              ].map(([l, v]) => (
+                <div key={l} className="flex flex-col">
+                  <span className={`text-[10px] uppercase ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{l}</span>
+                  <span className={`font-semibold ${dark ? 'text-gray-200' : 'text-gray-700'}`}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
