@@ -26,17 +26,14 @@ const CLS = {
 
 interface KPICardProps {
   label: string; value: string | React.ReactNode; icon: string; dark: boolean
-  metric?: MetricKey; metricValue?: number
-  trend?: number
-  sparklineData?: any[]
-  sparklineKey?: string
-  sparklineColor?: string
+  metric?: MetricKey; metricValue?: number; trend?: number
+  sparklineData?: any[]; sparklineKey?: string; sparklineColor?: string
 }
 
 function KPICard({ label, value, icon, dark, trend, sparklineData, sparklineKey, sparklineColor }: KPICardProps) {
   const isPositiveTrend = trend !== undefined && trend >= 0
   return (
-    <div className={`rounded-xl p-5 ${ dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} border shadow-sm flex flex-col justify-between h-36 relative overflow-hidden`}>
+    <div className={`rounded-xl p-5 ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} border shadow-sm flex flex-col justify-between h-36 relative overflow-hidden`}>
       <div className="flex justify-between items-center mb-2 z-10">
         <div className="flex items-center gap-2">
           <span className="text-sm opacity-50">{icon}</span>
@@ -70,11 +67,10 @@ function StatusBadge({ status }: { status: string }) {
 
 function MetricCell({ metric, value, display }: { metric: MetricKey; value: number; display: string }) {
   const color = metricColor(metric, value)
-  const cls = CLS[color].text
-  return <td className={`px-4 py-3.5 text-sm font-bold ${cls}`}>{display}</td>
+  return <td className={`px-4 py-3.5 text-sm font-bold ${CLS[color].text}`}>{display}</td>
 }
 
-// ─── AD PERFORMANCE CHART (remplace la photo) ───
+// ═══ AD PERFORMANCE CHART ═══════════════════════════════════════════════════════════════
 function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
   const hookColor = a.hookRate > 25 ? '#10b981' : a.hookRate > 15 ? '#f59e0b' : '#ef4444'
   const roasColor = a.roas > 10 ? '#10b981' : a.roas > 5 ? '#f59e0b' : '#ef4444'
@@ -89,9 +85,9 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
       <div className="shrink-0">
         <svg width="100" height="100" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r={r} fill="none" stroke={track} strokeWidth="7" />
-          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="7" strokeLinecap="round"
-            strokeDasharray={`${hookDash} ${circ}`} transform="rotate(-90 50 50)"
-            style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="7"
+            strokeLinecap="round" strokeDasharray={`${hookDash} ${circ}`}
+            transform="rotate(-90 50 50)" style={{ transition: 'stroke-dasharray 0.6s ease' }} />
           <text x="50" y="46" textAnchor="middle" fill={hookColor} fontSize="13" fontWeight="800">{a.hookRate.toFixed(1)}%</text>
           <text x="50" y="60" textAnchor="middle" fill={dark ? '#64748b' : '#94a3b8'} fontSize="8" fontWeight="500">HOOK RATE</text>
         </svg>
@@ -129,17 +125,17 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
   )
 }
 
-// ─── TABS ───
+// ═══ TABS ════════════════════════════════════════════════════════════════════════════════
 
 function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t = data.totals
   const daily = data.daily || []
   const kpis: KPICardProps[] = [
-    { label: 'Spend',     value: `$${fmt(t.spend)}`,       icon: '💸', dark, trend: 12.5, sparklineData: daily, sparklineKey: 'spend',     sparklineColor: '#3b82f6' },
-    { label: 'Purchases', value: fmtN(t.purchases),        icon: '🛒', dark, trend: 8.2,  sparklineData: daily, sparklineKey: 'purchases', sparklineColor: '#8b5cf6' },
-    { label: 'CPR',       value: `$${fmt(t.cpr)}`,         icon: '🎯', dark, trend: -4.3, sparklineData: daily, sparklineKey: 'cpr',       sparklineColor: '#ef4444' },
-    { label: 'ROAS',      value: `${fmt(t.roas)}`,         icon: '📈', dark, trend: 15.4, sparklineData: daily, sparklineKey: 'roas',      sparklineColor: '#10b981' },
-    { label: 'Budget',    value: `$${fmt(t.budget_total)}`, icon: '💰', dark },
+    { label: 'Spend',     value: `$${fmt(t.spend)}`,        icon: '💸', dark, trend: 12.5, sparklineData: daily, sparklineKey: 'spend',     sparklineColor: '#3b82f6' },
+    { label: 'Purchases', value: fmtN(t.purchases),         icon: '🛒', dark, trend: 8.2,  sparklineData: daily, sparklineKey: 'purchases', sparklineColor: '#8b5cf6' },
+    { label: 'CPR',       value: `$${fmt(t.cpr)}`,          icon: '🎯', dark, trend: -4.3, sparklineData: daily, sparklineKey: 'cpr',       sparklineColor: '#ef4444' },
+    { label: 'ROAS',      value: `${fmt(t.roas)}`,          icon: '📈', dark, trend: 15.4, sparklineData: daily, sparklineKey: 'roas',      sparklineColor: '#10b981' },
+    { label: 'Budget',    value: `$${fmt(t.budget_total)}`,  icon: '💰', dark },
   ]
   const best = [...data.campaigns].filter(c => c.status === 'ACTIVE').sort((a, b) => b.roas - a.roas)[0]
   return (
@@ -156,15 +152,14 @@ function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
           <div className="flex flex-wrap gap-x-12 gap-y-6">
             {[['Name', best.name, '', 'text'], ['ROAS', `${fmt(best.roas)}`, 'roas', 'metric'], ['CPR', `$${fmt(best.cpr)}`, 'cpr', 'metric']]
               .map(([l, v, mk, type]) => (
-              <div key={l as string}>
-                <p className={`text-xs mb-1 ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{l}</p>
-                {type === 'metric' && mk ? (
-                  <p className={`text-2xl font-bold ${CLS[metricColor(mk as MetricKey, parseFloat(v as string))].text}`}>{v}</p>
-                ) : (
-                  <p className={`text-xl font-semibold truncate max-w-[300px] ${dark ? 'text-white' : 'text-gray-900'}`}>{v}</p>
-                )}
-              </div>
-            ))}
+                <div key={l as string}>
+                  <p className={`text-xs mb-1 ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{l}</p>
+                  {type === 'metric' && mk
+                    ? <p className={`text-2xl font-bold ${CLS[metricColor(mk as MetricKey, parseFloat(v as string))].text}`}>{v}</p>
+                    : <p className={`text-xl font-semibold truncate max-w-[300px] ${dark ? 'text-white' : 'text-gray-900'}`}>{v}</p>
+                  }
+                </div>
+              ))}
           </div>
         </div>
       )}
@@ -225,7 +220,7 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
       <div className={`rounded-xl p-12 text-center border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
         <div className="text-4xl mb-4">🎨</div>
         <h3 className={`text-xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Aucun créatif actif</h3>
-        <p className={`mt-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Les données apparaîtront ici une fois les publicités activées.</p>
+        <p className={`mt-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Les données créatives apparaîtront ici une fois les publicités lancées.</p>
       </div>
     )
   }
@@ -243,12 +238,9 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
           <div className="px-4 pb-4 flex-1 flex flex-col">
             <h4 className={`font-bold text-sm mb-4 truncate ${dark ? 'text-white' : 'text-gray-900'}`}>{a.name}</h4>
             <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-auto text-sm">
-              {[['Spend', `$${fmt(a.spend)}`],
-                ['Impressions', fmtN(a.impressions)],
-                ['ATC', fmtN(a.atc)],
-                ['Coût/ATC', `$${fmt(a.spend / Math.max(a.atc, 1))}`],
-                ['Achats', fmtN(a.purchases)],
-                ['CTR', `${fmt(a.ctr_link)}%`],
+              {[['Spend', `$${fmt(a.spend)}`], ['Impressions', fmtN(a.impressions)],
+                ['ATC', fmtN(a.atc)], ['Coût/ATC', `$${fmt(a.spend / Math.max(a.atc, 1))}`],
+                ['Achats', fmtN(a.purchases)], ['CTR', `${fmt(a.ctr_link)}%`],
               ].map(([l, v]) => (
                 <div key={l} className="flex flex-col">
                   <span className={`text-[10px] uppercase ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{l}</span>
@@ -272,11 +264,11 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
     { label: 'Achats',        value: t.purchases,   bg: 'bg-[#ec4899]', wTop: 46,  wBottom: 31 },
   ]
   const metrics = [
-    { label: 'Taux ATC',              value: `${fmt((t.atc / Math.max(t.lpv, 1)) * 100)}%` },
+    { label: 'Taux ATC',               value: `${fmt((t.atc / Math.max(t.lpv, 1)) * 100)}%` },
     { label: 'Abandon (ATC - Achats)', value: t.atc - t.purchases },
-    { label: 'Taux Conversion',        value: `${fmt((t.purchases / Math.max(t.lpv, 1)) * 100)}%` },
-    { label: 'Coût / ATC',            value: `$${fmt(t.costPerATC)}` },
-    { label: 'Coût / LPV',            value: `$${fmt(t.costPerLPV)}` },
+    { label: 'Taux Conversion',         value: `${fmt((t.purchases / Math.max(t.lpv, 1)) * 100)}%` },
+    { label: 'Coût / ATC',             value: `$${fmt(t.costPerATC)}` },
+    { label: 'Coût / LPV',             value: `$${fmt(t.costPerLPV)}` },
   ]
   return (
     <div className={`rounded-xl p-8 border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
@@ -328,18 +320,18 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
 function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t = data.totals
   const alerts: any[] = []
-  if (t.cpr > 3)       alerts.push({ title: 'CPR Critique',       desc: `Le CPR moyen est de $${fmt(t.cpr)} (Seuil: $3)`,       type: 'red',    icon: '🚨' })
-  else if (t.cpr < 1.5) alerts.push({ title: 'CPR Excellent',       desc: `Le CPR moyen est de $${fmt(t.cpr)} !`,                 type: 'green',  icon: '🚀' })
-  if (t.frequency > 3)  alerts.push({ title: 'Saturation Audience', desc: `Fréquence à ${fmt(t.frequency)} (Seuil: 3)`,           type: 'orange', icon: '🔁' })
-  if (t.hookRate < 20)  alerts.push({ title: 'Hook Rate Faible',    desc: `Hook Rate à ${fmt(t.hookRate)}% (Seuil: 20%)`,         type: 'orange', icon: '🎣' })
-  if (t.ctr_link < 2)   alerts.push({ title: 'CTR Faible',          desc: `CTR Lien à ${fmt(t.ctr_link)}% (Seuil: 2%)`,          type: 'orange', icon: '👀' })
-  if (t.roas > 10)      alerts.push({ title: 'ROAS Exceptionnel',   desc: `ROAS à ${fmt(t.roas)}x !`,                             type: 'green',  icon: '🏆' })
+  if (t.cpr > 3)        alerts.push({ title: 'CPR Critique',       desc: `Le CPR moyen est de $${fmt(t.cpr)} (Seuil: $3)`,    type: 'red',    icon: '🚨' })
+  else if (t.cpr < 1.5) alerts.push({ title: 'CPR Excellent',       desc: `Le CPR moyen est de $${fmt(t.cpr)} !`,              type: 'green',  icon: '🚀' })
+  if (t.frequency > 3)  alerts.push({ title: 'Saturation Audience', desc: `Fréquence à ${fmt(t.frequency)} (Seuil: 3)`,        type: 'orange', icon: '🔁' })
+  if (t.hookRate < 20)  alerts.push({ title: 'Hook Rate Faible',    desc: `Hook Rate à ${fmt(t.hookRate)}% (Seuil: 20%)`,      type: 'orange', icon: '🎣' })
+  if (t.ctr_link < 2)   alerts.push({ title: 'CTR Faible',          desc: `CTR Lien à ${fmt(t.ctr_link)}% (Seuil: 2%)`,       type: 'orange', icon: '👀' })
+  if (t.roas > 10)      alerts.push({ title: 'ROAS Exceptionnel',   desc: `ROAS à ${fmt(t.roas)}x !`,                          type: 'green',  icon: '🏆' })
   if (alerts.length === 0) {
     return (
       <div className={`rounded-xl p-12 text-center border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
         <div className="text-4xl mb-4">✅</div>
         <h3 className={`text-xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Tout est au vert !</h3>
-        <p className={`mt-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Aucune alerte critique ou anomalie détectée.</p>
+        <p className={`mt-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Aucune alerte critique ou anomalie détectée sur tes campagnes.</p>
       </div>
     )
   }
@@ -404,10 +396,8 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
   const handleSave = () => {
     localStorage.setItem('metaToken', tempToken)
     localStorage.setItem('metaAdAccountId', tempAccountId)
-    setMetaToken(tempToken)
-    setMetaAdAccountId(tempAccountId)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    setMetaToken(tempToken); setMetaAdAccountId(tempAccountId)
+    setSaved(true); setTimeout(() => setSaved(false), 3000)
   }
   return (
     <div className={`rounded-xl p-8 border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm max-w-2xl mx-auto`}>
@@ -417,11 +407,13 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
           <label className={`block text-sm font-semibold mb-2 ${dark ? 'text-gray-300' : 'text-gray-700'}`}>Meta Access Token</label>
           <input type="password" value={tempToken} onChange={e => setTempToken(e.target.value)} placeholder="EAAB..."
             className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-300 text-gray-900'}`} />
+          <p className={`text-xs mt-2 ${dark ? 'text-gray-500' : 'text-gray-500'}`}>Token d'accès généré depuis Facebook Developers.</p>
         </div>
         <div>
           <label className={`block text-sm font-semibold mb-2 ${dark ? 'text-gray-300' : 'text-gray-700'}`}>Ad Account ID</label>
           <input type="text" value={tempAccountId} onChange={e => setTempAccountId(e.target.value)} placeholder="Ex: 884019833957409"
             className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-300 text-gray-900'}`} />
+          <p className={`text-xs mt-2 ${dark ? 'text-gray-500' : 'text-gray-500'}`}>Identifiant du compte publicitaire (sans le 'act_').</p>
         </div>
         <button onClick={handleSave} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Sauvegarder</button>
         {saved && <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 dark:text-emerald-400 text-sm text-center font-semibold">✅ Paramètres sauvegardés !</div>}
@@ -438,7 +430,7 @@ const STORES = [
 
 const TABS = [
   { id: 'overview'  as Tab, label: '📊 Vue Générale' },
-  { id: 'campaigns' as Tab, label: '🞹 Campagnes'    },
+  { id: 'campaigns' as Tab, label: '🎯 Campagnes'    },
   { id: 'creative'  as Tab, label: '🎨 Créatifs'     },
   { id: 'funnel'    as Tab, label: '🎤 Funnel'       },
   { id: 'alerts'    as Tab, label: '🚨 Alertes'      },
