@@ -44,10 +44,14 @@ function parseIns(d: any) {
 }
 
 async function gfetch(url: string): Promise<any> {
-  const r = await fetch(url);
-  const txt = await r.text();
-  try { return JSON.parse(txt); }
-  catch { throw new Error(`Meta API error: ${txt.slice(0, 200)}`); }
+  try {
+    const r = await fetch(url);
+    const txt = await r.text();
+    try { return JSON.parse(txt); }
+    catch { return { error: { message: `Invalid JSON: ${txt.slice(0,100)}` } }; }
+  } catch(e: any) {
+    return { error: { message: e.message } };
+  }
 }
 
 async function fetchFromAccount(accId: string, preset: string, tk: string) {
@@ -59,6 +63,8 @@ async function fetchFromAccount(accId: string, preset: string, tk: string) {
     gfetch(`${base}/ads?fields=id,status,adcreatives{thumbnail_url}&${tk}&limit=100`),
     gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&date_preset=${preset}&time_increment=1&${tk}`),
   ]);
+
+  if (campIns.error) return { campaigns: [], ads: [], daily: [] };
 
   const cMeta: Record<string, any> = {};
   for (const c of (campList.data || []))
@@ -93,71 +99,78 @@ async function fetchFromAccount(accId: string, preset: string, tk: string) {
   return { campaigns, ads, daily };
 }
 
+function buildTotals(campaigns: any[]) {
+  const zero = { spend:0,purchases:0,revenue:0,impressions:0,reach:0,atc:0,lpv:0,clicks_link:0,thruplay:0,budget_total:0,videoViews:0 };
+  const sum  = campaigns.reduce((acc: any, c: any) => ({
+    spend:        acc.spend        + c.spend,
+    purchases:    acc.purchases    + c.purchases,
+    revenue:      acc.revenue      + c.revenue,
+    impressions:  acc.impressions  + c.impressions,
+    reach:        acc.reach        + c.reach,
+    atc:          acc.atc          + c.atc,
+    lpv:          acc.lpv          + c.lpv,
+    clicks_link:  acc.clicks_link  + c.clicks_link,
+    thruplay:     acc.thruplay     + c.thruplay,
+    budget_total: acc.budget_total + (c.daily_budget || 0),
+    videoViews:   acc.videoViews   + c.videoViews,
+  }), zero);
+  return {
+    ...sum,
+    cpr:        sum.purchases   > 0 ? sum.spend / sum.purchases   : 0,
+    roas:       sum.spend       > 0 ? sum.revenue / sum.spend     : 0,
+    cpm:        sum.impressions > 0 ? (sum.spend / sum.impressions) * 1000 : 0,
+    ctr_link:   sum.impressions > 0 ? (sum.clicks_link / sum.impressions) * 100 : 0,
+    frequency:  campaigns.length > 0 ? campaigns.reduce((a: any,c: any) => a + c.frequency, 0) / campaigns.length : 0,
+    hookRate:   sum.impressions > 0 ? (sum.videoViews / sum.impressions) * 100 : 0,
+    costPerATC: sum.atc > 0 ? sum.spend / sum.atc : 0,
+    costPerLPV: sum.lpv > 0 ? sum.spend / sum.lpv : 0,
+  };
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const token  = req.query.access_token || process.env.META_ACCESS_TOKEN || '';
-  const preset = req.query.date_preset  || 'last_7d';
+  const token     = req.query.access_token  || process.env.META_ACCESS_TOKEN  || '';
+  const rawId     = req.query.ad_account_id || process.env.META_AD_ACCOUNT_ID || '';
+  const accountId = rawId.replace(/^act_/, '');
+  const preset    = req.query.date_preset   || 'last_7d';
 
-  if (!token) return res.status(400).json({ error: 'Token manquant — configurez-le dans Paramètres.' });
+  if (!token) return res.status(400).json({ error: 'Token manquant — configurez dans Paramètres.' });
 
   const tk = `access_token=${token}`;
 
   try {
-    // ── 1. جيب كل الحسابات التي يملكها التوكن ──
-    const accountsRaw = await gfetch(`${GRAPH}/me/adaccounts?fields=id,name&${tk}&limit=50`);
-    if (accountsRaw.error) throw new Error(accountsRaw.error.message);
+    let campaigns: any[] = [];
+    let ads:       any[] = [];
+    let daily:     any[] = [];
 
-    const accountIds = (accountsRaw.data || []).map((a: any) => a.id.replace('act_', ''));
-    if (accountIds.length === 0) throw new Error('Aucun compte publicitaire trouvé.');
+    if (accountId) {
+      // ── Ad Account ID fourni — fetch ce compte uniquement
+      const result = await fetchFromAccount(accountId, preset, tk);
+      campaigns = result.campaigns;
+      ads       = result.ads;
+      daily     = result.daily;
+    } else {
+      // ── Pas d'ID — fetch tous les comptes du token
+      const accountsRaw = await gfetch(`${GRAPH}/me/adaccounts?fields=id,name&${tk}&limit=50`);
+      if (accountsRaw.error) throw new Error(accountsRaw.error.message);
+      const accountIds: string[] = (accountsRaw.data || []).map((a: any) => a.id.replace('act_', ''));
+      if (accountIds.length === 0) throw new Error('Aucun compte publicitaire trouvé.');
+      const allResults = await Promise.all(
+        accountIds.map(async (id) => {
+          try { return await fetchFromAccount(id, preset, tk); }
+          catch { return { campaigns: [], ads: [], daily: [] }; }
+        })
+      );
+      campaigns = allResults.flatMap(r => r.campaigns);
+      ads       = allResults.flatMap(r => r.ads);
+      daily     = allResults.flatMap(r => r.daily);
+    }
 
-    // ── 2. جيب بيانات كل حساب — إذا حساب فشل يرجع بيانات فارغة ──
-    const allResults = await Promise.all(
-      accountIds.map(async (accId: string) => {
-        try {
-          return await fetchFromAccount(accId, preset, tk);
-        } catch {
-          return { campaigns: [], ads: [], daily: [] };
-        }
-      })
-    );
-
-    // ── 3. دمج كل النتائج ──
-    const campaigns = allResults.flatMap(r => r.campaigns);
-    const ads       = allResults.flatMap(r => r.ads);
-    const daily     = allResults.flatMap(r => r.daily);
-
-    // ── 4. احسب الإجماليات ──
-    const zero = { spend:0,purchases:0,revenue:0,impressions:0,reach:0,atc:0,lpv:0,clicks_link:0,thruplay:0,budget_total:0,videoViews:0 };
-    const sum  = campaigns.reduce((acc: any, c: any) => ({
-      spend:        acc.spend        + c.spend,
-      purchases:    acc.purchases    + c.purchases,
-      revenue:      acc.revenue      + c.revenue,
-      impressions:  acc.impressions  + c.impressions,
-      reach:        acc.reach        + c.reach,
-      atc:          acc.atc          + c.atc,
-      lpv:          acc.lpv          + c.lpv,
-      clicks_link:  acc.clicks_link  + c.clicks_link,
-      thruplay:     acc.thruplay     + c.thruplay,
-      budget_total: acc.budget_total + (c.daily_budget || 0),
-      videoViews:   acc.videoViews   + c.videoViews,
-    }), zero);
-
-    const totals = {
-      ...sum,
-      cpr:        sum.purchases   > 0 ? sum.spend / sum.purchases   : 0,
-      roas:       sum.spend       > 0 ? sum.revenue / sum.spend     : 0,
-      cpm:        sum.impressions > 0 ? (sum.spend / sum.impressions) * 1000 : 0,
-      ctr_link:   sum.impressions > 0 ? (sum.clicks_link / sum.impressions) * 100 : 0,
-      frequency:  campaigns.length > 0 ? campaigns.reduce((a: any,c: any) => a + c.frequency, 0) / campaigns.length : 0,
-      hookRate:   sum.impressions > 0 ? (sum.videoViews / sum.impressions) * 100 : 0,
-      costPerATC: sum.atc > 0 ? sum.spend / sum.atc : 0,
-      costPerLPV: sum.lpv > 0 ? sum.spend / sum.lpv : 0,
-    };
-
+    const totals = buildTotals(campaigns);
     return res.status(200).json({ totals, campaigns, ads, daily });
 
   } catch (e: any) {
