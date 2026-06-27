@@ -40,18 +40,14 @@ function parseIns(d: any) {
   const cpc_link    = clicks_link > 0 ? spend / clicks_link : 0;
   const costPerATC  = atc > 0 ? spend / atc : 0;
   const costPerLPV  = lpv > 0 ? spend / lpv : 0;
-  return {
-    spend, impressions, reach, frequency, cpm, ctr_all, ctr_link,
-    clicks_link, cpc_link, purchases, atc, lpv, videoViews, revenue,
-    thruplay, hookRate, cpr, roas, costPerATC, costPerLPV,
-  };
+  return { spend, impressions, reach, frequency, cpm, ctr_all, ctr_link, clicks_link, cpc_link, purchases, atc, lpv, videoViews, revenue, thruplay, hookRate, cpr, roas, costPerATC, costPerLPV };
 }
 
 async function gfetch(url: string): Promise<any> {
   const r = await fetch(url);
   const txt = await r.text();
   try { return JSON.parse(txt); }
-  catch { throw new Error(`Meta API error: ${txt.slice(0, 300)}`); }
+  catch { throw new Error(`Meta API error: ${txt.slice(0, 200)}`); }
 }
 
 export default async function handler(req: any, res: any) {
@@ -65,70 +61,81 @@ export default async function handler(req: any, res: any) {
   const accountId = rawId.replace(/^act_/, '');
   const preset    = req.query.date_preset   || 'last_7d';
 
-  if (!token)     return res.status(400).json({ error: 'Token manquant — configurez-le dans Param\u00e8tres.' });
+  if (!token)     return res.status(400).json({ error: 'Token manquant.' });
   if (!accountId) return res.status(400).json({ error: 'Ad Account ID manquant.' });
 
   const base = `${GRAPH}/act_${accountId}`;
   const tk   = `access_token=${token}`;
 
   try {
-    // 5 appels en PARALLELE
     const [campIns, campList, adIns, adList, dailyRaw] = await Promise.all([
       gfetch(`${base}/insights?level=campaign&fields=campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=50`),
       gfetch(`${base}/campaigns?fields=id,status,daily_budget&${tk}&limit=50`),
       gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=100`),
-      // ← thumbnail_url recupere la miniature de chaque pub
-      gfetch(`${base}/ads?fields=id,status,adcreatives{thumbnail_url,object_type}&${tk}&limit=100`),
+      // ← campaign_id + page_id via object_story_spec
+      gfetch(`${base}/ads?fields=id,status,campaign_id,adcreatives{thumbnail_url,object_story_spec}&${tk}&limit=100`),
       gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&date_preset=${preset}&time_increment=1&${tk}`),
     ]);
 
     if (campList.error) throw new Error(campList.error.message);
     if (campIns.error)  throw new Error(campIns.error.message);
-    if (adList.error)   throw new Error(adList.error.message);
-    if (adIns.error)    throw new Error(adIns.error.message);
 
-    // Maps lookup
+    // Campaign meta
     const cMeta: Record<string, any> = {};
     for (const c of (campList.data || []))
       cMeta[c.id] = { status: c.status, daily_budget: c.daily_budget ? parseFloat(c.daily_budget) / 100 : 0 };
 
+    // Ad meta + page_id extraction + campaign → page_id map
     const aMeta: Record<string, any> = {};
+    const campaignPageMap: Record<string, string> = {};
+
     for (const a of (adList.data || [])) {
-      // Recupere la miniature du premier creatif
-      const thumbnail = a.adcreatives?.data?.[0]?.thumbnail_url || null;
-      aMeta[a.id] = { status: a.status, thumbnail };
+      const creative  = a.adcreatives?.data?.[0];
+      const thumbnail = creative?.thumbnail_url || null;
+      const page_id   = creative?.object_story_spec?.page_id || null;
+      aMeta[a.id] = { status: a.status, thumbnail, page_id };
+      // Map campaign_id → page_id
+      if (a.campaign_id && page_id && !campaignPageMap[a.campaign_id]) {
+        campaignPageMap[a.campaign_id] = page_id;
+      }
     }
 
-    // Campaigns
+    // Campaigns avec page_id
     const campaigns = (campIns.data || []).map((row: any) => {
       const p = parseIns(row);
       const m = cMeta[row.campaign_id] || {};
-      return { id: row.campaign_id, name: row.campaign_name || row.campaign_id, status: m.status || 'UNKNOWN', daily_budget: m.daily_budget || 0, ...p };
+      return {
+        id:           row.campaign_id,
+        name:         row.campaign_name || row.campaign_id,
+        status:       m.status       || 'UNKNOWN',
+        daily_budget: m.daily_budget || 0,
+        page_id:      campaignPageMap[row.campaign_id] || null,
+        ...p,
+      };
     });
 
-    // Ads — avec thumbnail
+    // Ads avec page_id
     const ads = (adIns.data || []).map((row: any) => {
       const p = parseIns(row);
       const m = aMeta[row.ad_id] || {};
       return {
         id:        row.ad_id,
-        name:      row.ad_name || row.ad_id,
-        status:    m.status    || 'ACTIVE',
-        thumbnail: m.thumbnail || null,   // URL image/video
+        name:      row.ad_name  || row.ad_id,
+        status:    m.status     || 'ACTIVE',
+        thumbnail: m.thumbnail  || null,
+        page_id:   m.page_id    || null,
         ...p,
       };
     });
 
-    // Daily (courbes Historique)
+    // Daily
     const daily = (dailyRaw.data || []).map((d: any) => {
-      const spend       = parseFloat(d.spend || '0');
-      const acts        = d.actions       || [];
-      const vals        = d.action_values || [];
-      const purchases   = act(acts, 'purchase');
-      const revenue     = val(vals, 'purchase');
+      const spend     = parseFloat(d.spend || '0');
+      const purchases = act(d.actions       || [], 'purchase');
+      const revenue   = val(d.action_values || [], 'purchase');
       const impressions = parseInt(d.impressions || '0');
-      const cpr         = purchases > 0 ? spend / purchases : 0;
-      const roas        = spend     > 0 ? revenue / spend   : 0;
+      const cpr  = purchases > 0 ? spend / purchases : 0;
+      const roas = spend     > 0 ? revenue / spend   : 0;
       return { date: (d.date_start || '').slice(5), spend: +spend.toFixed(2), purchases, impressions, cpr: +cpr.toFixed(2), roas: +roas.toFixed(2) };
     });
 
