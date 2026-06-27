@@ -71,13 +71,12 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
   const hr        = a.hookRate || 0
   const hookColor = hr > 25 ? '#10b981' : hr > 15 ? '#f59e0b' : '#ef4444'
   const roasColor = (a.roas||0) > 10 ? '#10b981' : (a.roas||0) > 5 ? '#f59e0b' : '#ef4444'
-  const cprColor  = (a.cpr||0) < 1.5 ? '#10b981' : (a.cpr||0) < 3 ? '#f59e0b' : '#ef4444'
+  const cprColor  = (a.cpr||0)  < 1.5 ? '#10b981' : (a.cpr||0)  < 3  ? '#f59e0b' : '#ef4444'
   const N = 18
-  const roasCurve = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i, v:+((a.roas||0)*1.4*t/(t+0.3)).toFixed(2)} })
-  const cprCurve  = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i, v:+((a.cpr||0)*(0.5+Math.exp(-t*2.5)*1.5)).toFixed(2)} })
-  const thruCurve = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i, v:Math.round((a.thruplay||0)*t)} })
-  const r=34; const circ=2*Math.PI*r
-  const hookDash=Math.min(hr/60,1)*circ
+  const roasCurve = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i,v:+((a.roas||0)*1.4*t/(t+0.3)).toFixed(2)} })
+  const cprCurve  = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i,v:+((a.cpr||0)*(0.5+Math.exp(-t*2.5)*1.5)).toFixed(2)} })
+  const thruCurve = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i,v:Math.round((a.thruplay||0)*t)} })
+  const r=34; const circ=2*Math.PI*r; const hookDash=Math.min(hr/60,1)*circ
   const bg=dark?'#0f172a':'#f8fafc'; const track=dark?'#1e293b':'#e2e8f0'
   const mini=(data:any[],color:string)=>(
     <div className="h-12"><ResponsiveContainer width="100%" height="100%">
@@ -91,7 +90,8 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
       <div className="flex items-center gap-3 mb-4">
         <svg width="72" height="72" viewBox="0 0 100 100" className="shrink-0">
           <circle cx="50" cy="50" r={r} fill="none" stroke={track} strokeWidth="8"/>
-          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${hookDash} ${circ}`} transform="rotate(-90 50 50)"/>
+          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={`${hookDash} ${circ}`} transform="rotate(-90 50 50)"/>
           <text x="50" y="46" textAnchor="middle" fill={hookColor} fontSize="13" fontWeight="800">{hr.toFixed(1)}%</text>
           <text x="50" y="60" textAnchor="middle" fill={dark?'#64748b':'#94a3b8'} fontSize="7.5" fontWeight="600">HOOK RATE</text>
         </svg>
@@ -126,8 +126,9 @@ function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
           <div className="flex flex-wrap gap-x-12 gap-y-4">
             {[['Nom',best.name,'','text'],['ROAS',`${fmt(best.roas)}x`,'roas','metric'],['CPR',`$${fmt(best.cpr)}`,'cpr','metric']].map(([l,v,mk,type])=>(
               <div key={l as string}><p className={`text-xs mb-1 ${dark?'text-gray-500':'text-gray-400'}`}>{l}</p>
-                {type==='metric'&&mk?<p className={`text-2xl font-bold ${CLS[metricColor(mk as MetricKey,parseFloat(v as string))].text}`}>{v}</p>
-                :<p className={`text-xl font-semibold truncate max-w-[300px] ${dark?'text-white':'text-gray-900'}`}>{v}</p>}
+                {type==='metric'&&mk
+                  ?<p className={`text-2xl font-bold ${CLS[metricColor(mk as MetricKey,parseFloat(v as string))].text}`}>{v}</p>
+                  :<p className={`text-xl font-semibold truncate max-w-[300px] ${dark?'text-white':'text-gray-900'}`}>{v}</p>}
               </div>
             ))}
           </div>
@@ -183,7 +184,8 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const sortedAds=[...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
   if(sortedAds.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">🎨</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucun créatif actif</h3>
+      <div className="text-4xl mb-4">🎨</div>
+      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucun créatif actif</h3>
     </div>
   )
   return (
@@ -191,15 +193,20 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
       {sortedAds.map((a:Ad)=>(
         <div key={a.id} className={`rounded-xl overflow-hidden border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm flex flex-col`}>
           <div className="relative w-full h-44 overflow-hidden">
-            {a.thumbnail?<img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover" onError={e=>{e.currentTarget.style.display='none';(e.currentTarget.nextSibling as HTMLElement)?.classList?.remove('hidden')}}/>:null}
-            <div className={`${a.thumbnail?'hidden':''} absolute inset-0 flex items-center justify-center ${dark?'bg-[#0f172a]':'bg-gray-100'}`}><span className="text-5xl opacity-30">🎬</span></div>
+            {a.thumbnail?<img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover"
+              onError={e=>{e.currentTarget.style.display='none';(e.currentTarget.nextSibling as HTMLElement)?.classList?.remove('hidden')}}/>:null}
+            <div className={`${a.thumbnail?'hidden':''} absolute inset-0 flex items-center justify-center ${dark?'bg-[#0f172a]':'bg-gray-100'}`}>
+              <span className="text-5xl opacity-30">🎬</span>
+            </div>
             <div className="absolute top-2 left-2 flex gap-1.5">
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-black/70 text-white">▶ Video</span>
               {a.status==='ACTIVE'&&<span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-500/90 text-white">Live</span>}
             </div>
             {a.roas>10&&<div className="absolute top-2 right-2"><span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-yellow-400/90 text-gray-900">⭐ Top</span></div>}
           </div>
-          <div className={`border-t border-b ${dark?'border-gray-800':'border-gray-100'}`}><AdPerformanceChart a={a} dark={dark}/></div>
+          <div className={`border-t border-b ${dark?'border-gray-800':'border-gray-100'}`}>
+            <AdPerformanceChart a={a} dark={dark}/>
+          </div>
           <div className="px-4 pb-4 flex-1 flex flex-col">
             <h4 className={`font-bold text-sm my-3 line-clamp-2 ${dark?'text-white':'text-gray-900'}`}>{a.name}</h4>
             <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-auto text-sm">
@@ -239,7 +246,9 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
           {steps.map((s,i)=>{
             const prev=i>0?steps[i-1].value:null; const conv=prev?((s.value/Math.max(prev,1))*100):null
             return (<div key={i} className="w-full flex h-16 sm:h-20 relative">
-              <div className="w-[35%] flex items-center justify-end pr-4"><span className={`text-xs sm:text-base font-medium text-right ${dark?'text-gray-200':'text-gray-900'}`}>{s.label}</span></div>
+              <div className="w-[35%] flex items-center justify-end pr-4">
+                <span className={`text-xs sm:text-base font-medium text-right ${dark?'text-gray-200':'text-gray-900'}`}>{s.label}</span>
+              </div>
               <div className="w-[30%] relative flex items-center justify-center">
                 <div className={`absolute inset-0 ${s.bg}`} style={{clipPath:`polygon(${(100-s.wTop)/2}% 0,${100-(100-s.wTop)/2}% 0,${100-(100-s.wBottom)/2}% 100%,${(100-s.wBottom)/2}% 100%)`}}/>
                 <span className="relative z-10 text-gray-900 font-bold text-lg drop-shadow-sm">{fmtN(s.value)}</span>
@@ -263,15 +272,16 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
 
 function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals; const alerts:any[]=[]
-  if(t.cpr>3)       alerts.push({title:'CPR Critique',      desc:`CPR à $${fmt(t.cpr)}`,       type:'red',   icon:'🚨'})
-  else if(t.cpr<1.5)alerts.push({title:'CPR Excellent',      desc:`CPR à $${fmt(t.cpr)} !`,     type:'green', icon:'🟢'})
+  if(t.cpr>3)       alerts.push({title:'CPR Critique',      desc:`CPR à $${fmt(t.cpr)}`,        type:'red',   icon:'🚨'})
+  else if(t.cpr<1.5)alerts.push({title:'CPR Excellent',      desc:`CPR à $${fmt(t.cpr)} !`,      type:'green', icon:'🟢'})
   if(t.frequency>3) alerts.push({title:'Saturation Audience',desc:`Fréquence ${fmt(t.frequency)}`,type:'orange',icon:'⚠️'})
-  if(t.hookRate<20) alerts.push({title:'Hook Rate Faible',   desc:`${fmt(t.hookRate)}%`,         type:'orange',icon:'📊'})
-  if(t.ctr_link<2)  alerts.push({title:'CTR Faible',         desc:`${fmt(t.ctr_link)}%`,         type:'orange',icon:'📌'})
-  if(t.roas>10)     alerts.push({title:'ROAS Exceptionnel',  desc:`${fmt(t.roas)}x !`,           type:'green', icon:'🏆'})
+  if(t.hookRate<20) alerts.push({title:'Hook Rate Faible',   desc:`${fmt(t.hookRate)}%`,          type:'orange',icon:'📊'})
+  if(t.ctr_link<2)  alerts.push({title:'CTR Faible',         desc:`${fmt(t.ctr_link)}%`,          type:'orange',icon:'📌'})
+  if(t.roas>10)     alerts.push({title:'ROAS Exceptionnel',  desc:`${fmt(t.roas)}x !`,            type:'green', icon:'🏆'})
   if(alerts.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">✅</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
+      <div className="text-4xl mb-4">✅</div>
+      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
     </div>
   )
   return (
@@ -279,7 +289,8 @@ function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
       {alerts.map((a,i)=>{ const c=CLS[a.type as keyof typeof CLS]; return (
         <div key={i} className={`rounded-xl p-6 border ${c.border} ${c.bg} shadow-sm flex items-start gap-4`}>
           <div className="text-3xl">{a.icon}</div>
-          <div><h4 className={`text-lg font-bold ${c.text}`}>{a.title}</h4><p className={`mt-1 text-sm ${dark?'text-gray-300':'text-gray-700'}`}>{a.desc}</p></div>
+          <div><h4 className={`text-lg font-bold ${c.text}`}>{a.title}</h4>
+          <p className={`mt-1 text-sm ${dark?'text-gray-300':'text-gray-700'}`}>{a.desc}</p></div>
         </div>
       )})}
     </div>
@@ -287,7 +298,8 @@ function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const daily=data.daily||[]; const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
+  const daily=data.daily||[]
+  const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
   const charts=[
     {title:'ROAS',    dataKey:'roas',     color:'#10b981',prefix:'', suffix:'x'},
     {title:'CPR',     dataKey:'cpr',      color:'#ef4444',prefix:'$',suffix:'' },
@@ -304,7 +316,8 @@ function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false}/>
               <XAxis dataKey="date" stroke={textColor} fontSize={12} tickLine={false} axisLine={false}/>
               <YAxis stroke={textColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={v=>`${c.prefix}${v}${c.suffix}`}/>
-              <Tooltip contentStyle={{backgroundColor:dark?'#1f2937':'#fff',borderColor:dark?'#374151':'#e5e7eb',borderRadius:'8px'}} formatter={(v:number)=>[`${c.prefix}${fmt(v)}${c.suffix}`,c.title]}/>
+              <Tooltip contentStyle={{backgroundColor:dark?'#1f2937':'#fff',borderColor:dark?'#374151':'#e5e7eb',borderRadius:'8px'}}
+                formatter={(v:number)=>[`${c.prefix}${fmt(v)}${c.suffix}`,c.title]}/>
               <Line type="monotone" dataKey={c.dataKey} stroke={c.color} strokeWidth={3} dot={{r:4,fill:c.color}} activeDot={{r:6}}/>
             </LineChart>
           </ResponsiveContainer></div>
@@ -314,17 +327,19 @@ function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-function SettingsTab({ dark, metaToken, setMetaToken }: {
+function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAdAccountId }: {
   dark: boolean
-  metaToken: string
-  setMetaToken: (v: string) => void
+  metaToken: string;       setMetaToken:       (v: string) => void
+  metaAdAccountId: string; setMetaAdAccountId: (v: string) => void
 }) {
   const [tempToken, setTempToken] = useState(metaToken)
-  const [saved, setSaved] = useState(false)
+  const [tempId,    setTempId]    = useState(metaAdAccountId)
+  const [saved,     setSaved]     = useState(false)
   const save = () => {
-    localStorage.setItem('metaToken', tempToken)
-    setMetaToken(tempToken)
-    setSaved(true); setTimeout(()=>setSaved(false), 3000)
+    localStorage.setItem('metaToken',        tempToken)
+    localStorage.setItem('metaAdAccountId',  tempId)
+    setMetaToken(tempToken); setMetaAdAccountId(tempId)
+    setSaved(true); setTimeout(()=>setSaved(false),3000)
   }
   return (
     <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm max-w-2xl mx-auto`}>
@@ -334,7 +349,12 @@ function SettingsTab({ dark, metaToken, setMetaToken }: {
           <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Meta Access Token</label>
           <input type="password" value={tempToken} onChange={e=>setTempToken(e.target.value)} placeholder="EAAB..."
             className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
-          <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Toutes les campagnes accessibles par ce token s’affichent automatiquement.</p>
+        </div>
+        <div>
+          <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Ad Account ID</label>
+          <input type="text" value={tempId} onChange={e=>setTempId(e.target.value)} placeholder="Ex: 884019833957409"
+            className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
+          <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Laissez vide pour afficher tous les comptes accessibles par le token.</p>
         </div>
         <button onClick={save} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">Sauvegarder</button>
         {saved&&<div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 text-sm text-center font-semibold">✅ Sauvegardé !</div>}
@@ -366,7 +386,8 @@ export default function Index() {
   const [loading, setLoading] = useState(true)
   const [data,    setData]    = useState<MetaData|null>(null)
   const [error,   setError]   = useState<string|null>(null)
-  const [metaToken, setMetaToken] = useState(()=>localStorage.getItem('metaToken')||'')
+  const [metaToken,       setMetaToken]       = useState(()=>localStorage.getItem('metaToken')       ||'')
+  const [metaAdAccountId, setMetaAdAccountId] = useState(()=>localStorage.getItem('metaAdAccountId')||'')
 
   useEffect(()=>{
     document.documentElement.classList.toggle('dark',dark)
@@ -379,7 +400,8 @@ export default function Index() {
     try {
       const url = new URL('/api/meta', window.location.origin)
       url.searchParams.set('date_preset', preset)
-      if(metaToken) url.searchParams.set('access_token', metaToken)
+      if(metaToken)       url.searchParams.set('access_token',  metaToken)
+      if(metaAdAccountId) url.searchParams.set('ad_account_id', metaAdAccountId)
       const r = await fetch(url.toString())
       const text = await r.text()
       let j: any
@@ -439,7 +461,8 @@ export default function Index() {
       </header>
       <main className="max-w-screen-2xl mx-auto px-6 py-8">
         {tab==='settings'?(
-          <SettingsTab dark={d} metaToken={metaToken} setMetaToken={setMetaToken}/>
+          <SettingsTab dark={d} metaToken={metaToken} setMetaToken={setMetaToken}
+            metaAdAccountId={metaAdAccountId} setMetaAdAccountId={setMetaAdAccountId}/>
         ):(
           <>
             {loading&&(
