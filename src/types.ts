@@ -4,6 +4,7 @@ export type MetricKey  = 'cpr' | 'roas' | 'ctr_link' | 'frequency' | 'hookRate' 
 
 export interface Campaign {
   id: string; name: string; status: string; daily_budget: number
+  page_id: string | null
   spend: number; impressions: number; reach: number; frequency: number; cpm: number
   cpc_link: number; ctr_link: number; ctr_all: number; clicks_link: number
   lpv: number; atc: number; costPerATC: number; costPerLPV: number
@@ -13,7 +14,8 @@ export interface Campaign {
 
 export interface Ad {
   id: string; name: string; status: string
-  thumbnail: string | null        // URL miniature depuis Meta API
+  thumbnail: string | null
+  page_id: string | null
   spend: number; impressions: number; reach: number; frequency: number; cpm: number
   ctr_link: number; ctr_all: number; clicks_link: number; cpc_link: number
   purchases: number; atc: number; lpv: number; videoViews: number; revenue: number
