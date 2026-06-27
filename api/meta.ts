@@ -100,39 +100,38 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const token  = req.query.access_token || process.env.META_ACCESS_TOKEN || '';
-  const bmId   = req.query.bm_id        || process.env.META_BM_ID        || '';
   const preset = req.query.date_preset  || 'last_7d';
 
-  if (!token) return res.status(400).json({ error: 'Token manquant.' });
-  if (!bmId)  return res.status(400).json({ error: 'BM ID manquant.' });
+  if (!token) return res.status(400).json({ error: 'Token manquant — configurez-le dans Paramètres.' });
 
   const tk = `access_token=${token}`;
 
   try {
-    // ── 1. جيب كل الحسابات من الـ BM ──
-    const accountsRaw = await gfetch(
-      `${GRAPH}/${bmId}/owned_ad_accounts?fields=id,name&${tk}&limit=50`
-    );
+    // ── 1. جيب كل الحسابات التي يملكها التوكن ──
+    const accountsRaw = await gfetch(`${GRAPH}/me/adaccounts?fields=id,name&${tk}&limit=50`);
     if (accountsRaw.error) throw new Error(accountsRaw.error.message);
 
-    const accountIds = (accountsRaw.data || []).map((a: any) =>
-      a.id.replace('act_', '')
-    );
+    const accountIds = (accountsRaw.data || []).map((a: any) => a.id.replace('act_', ''));
+    if (accountIds.length === 0) throw new Error('Aucun compte publicitaire trouvé.');
 
-    if (accountIds.length === 0) throw new Error('Aucun compte publicitaire dans ce BM.');
-
-    // ── 2. جيب البيانات من كل الحسابات بالتوازي ──
+    // ── 2. جيب بيانات كل حساب — إذا حساب فشل يرجع بيانات فارغة ──
     const allResults = await Promise.all(
-      accountIds.map((accId: string) => fetchFromAccount(accId, preset, tk))
+      accountIds.map(async (accId: string) => {
+        try {
+          return await fetchFromAccount(accId, preset, tk);
+        } catch {
+          return { campaigns: [], ads: [], daily: [] };
+        }
+      })
     );
 
-    // ── 3. ادمج كل النتائج ──
+    // ── 3. دمج كل النتائج ──
     const campaigns = allResults.flatMap(r => r.campaigns);
     const ads       = allResults.flatMap(r => r.ads);
     const daily     = allResults.flatMap(r => r.daily);
 
     // ── 4. احسب الإجماليات ──
-    const zero = { spend:0, purchases:0, revenue:0, impressions:0, reach:0, atc:0, lpv:0, clicks_link:0, thruplay:0, budget_total:0, videoViews:0 };
+    const zero = { spend:0,purchases:0,revenue:0,impressions:0,reach:0,atc:0,lpv:0,clicks_link:0,thruplay:0,budget_total:0,videoViews:0 };
     const sum  = campaigns.reduce((acc: any, c: any) => ({
       spend:        acc.spend        + c.spend,
       purchases:    acc.purchases    + c.purchases,
@@ -153,7 +152,7 @@ export default async function handler(req: any, res: any) {
       roas:       sum.spend       > 0 ? sum.revenue / sum.spend     : 0,
       cpm:        sum.impressions > 0 ? (sum.spend / sum.impressions) * 1000 : 0,
       ctr_link:   sum.impressions > 0 ? (sum.clicks_link / sum.impressions) * 100 : 0,
-      frequency:  campaigns.length > 0 ? campaigns.reduce((a: any, c: any) => a + c.frequency, 0) / campaigns.length : 0,
+      frequency:  campaigns.length > 0 ? campaigns.reduce((a: any,c: any) => a + c.frequency, 0) / campaigns.length : 0,
       hookRate:   sum.impressions > 0 ? (sum.videoViews / sum.impressions) * 100 : 0,
       costPerATC: sum.atc > 0 ? sum.spend / sum.atc : 0,
       costPerLPV: sum.lpv > 0 ? sum.spend / sum.lpv : 0,
