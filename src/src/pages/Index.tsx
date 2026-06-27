@@ -463,9 +463,9 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
 
 // ═══ CONSTANTS ════════════════════════════════════════════════════════════════
 const STORES = [
-  { id: 'zaya',   name: 'Zaya Shop',       accountId: '884019833957409', disabled: false },
-  { id: 'meli',   name: 'Meli Fashion',    accountId: '746014064682147', disabled: false },
-  { id: 'divine', name: 'Divine Boutique', accountId: '884019833957409', disabled: false },
+  { id: 'zaya',   name: 'Zaya Shop',       accountId: '884019833957409', pageId: '101595636037933', disabled: false },
+  { id: 'meli',   name: 'Meli Fashion',    accountId: '746014064682147', pageId: '301006079773008', disabled: false },
+  { id: 'divine', name: 'Divine Boutique', accountId: '884019833957409', pageId: '534799229723164', disabled: false },
 ]
 const TABS = [
   { id: 'overview'  as Tab, label: '📊 Vue Générale' },
@@ -514,8 +514,15 @@ export default function Index() {
       let j: any
       try { j = JSON.parse(text) } catch { throw new Error('Réponse API invalide.') }
       if (j.error) throw new Error(j.error)
+        // Filtre par Page ID
+      const currentStore = STORES.find(s => s.id === store)
+      if (currentStore?.pageId) {
+        j.campaigns = (j.campaigns || []).filter((c: any) => c.page_id === currentStore.pageId)
+        j.ads       = (j.ads       || []).filter((a: any) => a.page_id === currentStore.pageId)
+      }
+
       setData(j)
-    } catch (e: any) {
+      } catch (e: any) {
       setError(e.message || 'Erreur inattendue')
       setData(null)
     } finally { setLoading(false) }
