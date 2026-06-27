@@ -73,60 +73,61 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
   const roasColor = (a.roas||0) > 10 ? '#10b981' : (a.roas||0) > 5 ? '#f59e0b' : '#ef4444'
   const cprColor  = (a.cpr||0) < 1.5 ? '#10b981' : (a.cpr||0) < 3 ? '#f59e0b' : '#ef4444'
   const N = 18
-  const roasCurve = Array.from({ length: N }, (_, i) => { const t = (i+1)/N; return { i, v: +((a.roas||0)*1.4*t/(t+0.3)).toFixed(2) } })
-  const cprCurve  = Array.from({ length: N }, (_, i) => { const t = (i+1)/N; return { i, v: +((a.cpr||0)*(0.5+Math.exp(-t*2.5)*1.5)).toFixed(2) } })
-  const thruCurve = Array.from({ length: N }, (_, i) => { const t = (i+1)/N; return { i, v: Math.round((a.thruplay||0)*t) } })
-  const r = 34; const circ = 2*Math.PI*r
-  const hookDash = Math.min(hr/60,1)*circ
-  const bg = dark ? '#0f172a' : '#f8fafc'; const track = dark ? '#1e293b' : '#e2e8f0'
-  const mini = (data: any[], color: string) => (
+  const roasCurve = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i, v:+((a.roas||0)*1.4*t/(t+0.3)).toFixed(2)} })
+  const cprCurve  = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i, v:+((a.cpr||0)*(0.5+Math.exp(-t*2.5)*1.5)).toFixed(2)} })
+  const thruCurve = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i, v:Math.round((a.thruplay||0)*t)} })
+  const r=34; const circ=2*Math.PI*r
+  const hookDash=Math.min(hr/60,1)*circ
+  const bg=dark?'#0f172a':'#f8fafc'; const track=dark?'#1e293b':'#e2e8f0'
+  const mini=(data:any[],color:string)=>(
     <div className="h-12"><ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top:2,right:2,left:2,bottom:2 }}>
-        <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+      <LineChart data={data} margin={{top:2,right:2,left:2,bottom:2}}>
+        <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2.5} dot={false} isAnimationActive={false}/>
       </LineChart>
     </ResponsiveContainer></div>
   )
   return (
-    <div className="p-4" style={{ background: bg }}>
+    <div className="p-4" style={{background:bg}}>
       <div className="flex items-center gap-3 mb-4">
         <svg width="72" height="72" viewBox="0 0 100 100" className="shrink-0">
-          <circle cx="50" cy="50" r={r} fill="none" stroke={track} strokeWidth="8" />
-          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${hookDash} ${circ}`} transform="rotate(-90 50 50)" />
+          <circle cx="50" cy="50" r={r} fill="none" stroke={track} strokeWidth="8"/>
+          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${hookDash} ${circ}`} transform="rotate(-90 50 50)"/>
           <text x="50" y="46" textAnchor="middle" fill={hookColor} fontSize="13" fontWeight="800">{hr.toFixed(1)}%</text>
           <text x="50" y="60" textAnchor="middle" fill={dark?'#64748b':'#94a3b8'} fontSize="7.5" fontWeight="600">HOOK RATE</text>
         </svg>
         <div>
           <p className={`text-[10px] font-semibold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>Hook Rate</p>
-          <p className="text-xl font-bold" style={{ color: hookColor }}>{hr.toFixed(1)}%</p>
+          <p className="text-xl font-bold" style={{color:hookColor}}>{hr.toFixed(1)}%</p>
         </div>
       </div>
-      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>ROAS</span><span className="text-[11px] font-bold" style={{ color: roasColor }}>{(a.roas||0).toFixed(1)}x</span></div>{mini(roasCurve,roasColor)}</div>
-      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>CPR</span><span className="text-[11px] font-bold" style={{ color: cprColor }}>${(a.cpr||0).toFixed(2)}</span></div>{mini(cprCurve,cprColor)}</div>
+      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>ROAS</span><span className="text-[11px] font-bold" style={{color:roasColor}}>{(a.roas||0).toFixed(1)}x</span></div>{mini(roasCurve,roasColor)}</div>
+      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>CPR</span><span className="text-[11px] font-bold" style={{color:cprColor}}>${(a.cpr||0).toFixed(2)}</span></div>{mini(cprCurve,cprColor)}</div>
       <div><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>ThruPlay</span><span className={`text-[11px] font-bold ${dark?'text-blue-400':'text-blue-500'}`}>{fmtN(a.thruplay||0)}</span></div>{mini(thruCurve,'#60a5fa')}</div>
     </div>
   )
 }
 
 function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const t = data.totals; const daily = data.daily || []
+  const t=data.totals; const daily=data.daily||[]
   const kpis: KPICardProps[] = [
-    { label:'Spend',     value:`$${fmt(t.spend)}`,        icon:'💸', dark, trend:12.5, sparklineData:daily, sparklineKey:'spend',     sparklineColor:'#3b82f6' },
-    { label:'Purchases', value:fmtN(t.purchases),         icon:'🛒', dark, trend:8.2,  sparklineData:daily, sparklineKey:'purchases', sparklineColor:'#8b5cf6' },
-    { label:'CPR',       value:`$${fmt(t.cpr)}`,          icon:'🎯', dark, trend:-4.3, sparklineData:daily, sparklineKey:'cpr',       sparklineColor:'#ef4444' },
-    { label:'ROAS',      value:`${fmt(t.roas)}x`,         icon:'📈', dark, trend:15.4, sparklineData:daily, sparklineKey:'roas',      sparklineColor:'#10b981' },
-    { label:'Budget/j',  value:`$${fmt(t.budget_total)}`, icon:'💰', dark },
+    {label:'Spend',    value:`$${fmt(t.spend)}`,       icon:'💸',dark,trend:12.5,sparklineData:daily,sparklineKey:'spend',    sparklineColor:'#3b82f6'},
+    {label:'Purchases',value:fmtN(t.purchases),        icon:'🛒',dark,trend:8.2, sparklineData:daily,sparklineKey:'purchases',sparklineColor:'#8b5cf6'},
+    {label:'CPR',      value:`$${fmt(t.cpr)}`,         icon:'🎯',dark,trend:-4.3,sparklineData:daily,sparklineKey:'cpr',      sparklineColor:'#ef4444'},
+    {label:'ROAS',     value:`${fmt(t.roas)}x`,        icon:'📈',dark,trend:15.4,sparklineData:daily,sparklineKey:'roas',     sparklineColor:'#10b981'},
+    {label:'Budget/j', value:`$${fmt(t.budget_total)}`,icon:'💰',dark},
   ]
-  const best = [...data.campaigns].filter(c=>c.status==='ACTIVE').sort((a,b)=>b.roas-a.roas)[0]
+  const best=[...data.campaigns].filter(c=>c.status==='ACTIVE').sort((a,b)=>b.roas-a.roas)[0]
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">{kpis.map((k,i)=><KPICard key={i} {...k}/>)}</div>
-      {best && (
+      {best&&(
         <div className={`rounded-xl p-6 ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} border shadow-sm`}>
           <p className={`text-sm font-semibold mb-4 ${dark?'text-gray-300':'text-gray-700'}`}>🏆 Top Campaign</p>
           <div className="flex flex-wrap gap-x-12 gap-y-4">
             {[['Nom',best.name,'','text'],['ROAS',`${fmt(best.roas)}x`,'roas','metric'],['CPR',`$${fmt(best.cpr)}`,'cpr','metric']].map(([l,v,mk,type])=>(
               <div key={l as string}><p className={`text-xs mb-1 ${dark?'text-gray-500':'text-gray-400'}`}>{l}</p>
-                {type==='metric'&&mk?<p className={`text-2xl font-bold ${CLS[metricColor(mk as MetricKey,parseFloat(v as string))].text}`}>{v}</p>:<p className={`text-xl font-semibold truncate max-w-[300px] ${dark?'text-white':'text-gray-900'}`}>{v}</p>}
+                {type==='metric'&&mk?<p className={`text-2xl font-bold ${CLS[metricColor(mk as MetricKey,parseFloat(v as string))].text}`}>{v}</p>
+                :<p className={`text-xl font-semibold truncate max-w-[300px] ${dark?'text-white':'text-gray-900'}`}>{v}</p>}
               </div>
             ))}
           </div>
@@ -137,7 +138,7 @@ function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const headers = ['Nom','Statut','Budget/j','Dépensé','Impressions','Couverture','Fréquence','CPM','CPC lien','CTR lien%','CTR tous%','Vues page','Coût/LPV','ATC','Coût/ATC','Abandon','Achats','Taux Conv.%','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
+  const headers=['Nom','Statut','Budget/j','Dépensé','Impressions','Couverture','Fréquence','CPM','CPC lien','CTR lien%','CTR tous%','Vues page','Coût/LPV','ATC','Coût/ATC','Abandon','Achats','Taux Conv.%','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
   return (
     <div className={`rounded-xl overflow-hidden border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
       <div className="overflow-x-auto"><table className="w-full text-sm">
@@ -179,8 +180,8 @@ function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const sortedAds = [...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
-  if (sortedAds.length===0) return (
+  const sortedAds=[...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
+  if(sortedAds.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
       <div className="text-4xl mb-4">🎨</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucun créatif actif</h3>
     </div>
@@ -217,30 +218,30 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const t = data.totals
-  const steps = [
-    { label:'Clics lien',    value:t.clicks_link, bg:'bg-[#fbcfe8]', wTop:100, wBottom:85 },
-    { label:'Vues page',     value:t.lpv,         bg:'bg-[#f9a8d4]', wTop:82,  wBottom:67 },
-    { label:'Ajouts Panier', value:t.atc,         bg:'bg-[#f472b6]', wTop:64,  wBottom:49 },
-    { label:'Achats',        value:t.purchases,   bg:'bg-[#ec4899]', wTop:46,  wBottom:31 },
+  const t=data.totals
+  const steps=[
+    {label:'Clics lien',   value:t.clicks_link,bg:'bg-[#fbcfe8]',wTop:100,wBottom:85},
+    {label:'Vues page',    value:t.lpv,        bg:'bg-[#f9a8d4]',wTop:82, wBottom:67},
+    {label:'Ajouts Panier',value:t.atc,        bg:'bg-[#f472b6]',wTop:64, wBottom:49},
+    {label:'Achats',       value:t.purchases,  bg:'bg-[#ec4899]',wTop:46, wBottom:31},
   ]
-  const metrics = [
-    { label:'Taux ATC',             value:`${fmt((t.atc/Math.max(t.lpv,1))*100)}%` },
-    { label:'Abandon (ATC-Achats)', value:t.atc-t.purchases },
-    { label:'Taux Conversion',       value:`${fmt((t.purchases/Math.max(t.lpv,1))*100)}%` },
-    { label:'Coût/ATC',             value:`$${fmt(t.costPerATC)}` },
-    { label:'Coût/LPV',             value:`$${fmt(t.costPerLPV)}` },
+  const metrics=[
+    {label:'Taux ATC',            value:`${fmt((t.atc/Math.max(t.lpv,1))*100)}%`},
+    {label:'Abandon (ATC-Achats)',value:t.atc-t.purchases},
+    {label:'Taux Conversion',      value:`${fmt((t.purchases/Math.max(t.lpv,1))*100)}%`},
+    {label:'Coût/ATC',            value:`$${fmt(t.costPerATC)}`},
+    {label:'Coût/LPV',            value:`$${fmt(t.costPerLPV)}`},
   ]
   return (
     <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
       <div className="flex justify-center mb-16 mt-8">
         <div className="flex flex-col w-full max-w-4xl mx-auto gap-2 py-4">
           {steps.map((s,i)=>{
-            const prev = i>0?steps[i-1].value:null; const conv = prev?((s.value/Math.max(prev,1))*100):null
+            const prev=i>0?steps[i-1].value:null; const conv=prev?((s.value/Math.max(prev,1))*100):null
             return (<div key={i} className="w-full flex h-16 sm:h-20 relative">
               <div className="w-[35%] flex items-center justify-end pr-4"><span className={`text-xs sm:text-base font-medium text-right ${dark?'text-gray-200':'text-gray-900'}`}>{s.label}</span></div>
               <div className="w-[30%] relative flex items-center justify-center">
-                <div className={`absolute inset-0 ${s.bg}`} style={{ clipPath:`polygon(${(100-s.wTop)/2}% 0,${100-(100-s.wTop)/2}% 0,${100-(100-s.wBottom)/2}% 100%,${(100-s.wBottom)/2}% 100%)` }}/>
+                <div className={`absolute inset-0 ${s.bg}`} style={{clipPath:`polygon(${(100-s.wTop)/2}% 0,${100-(100-s.wTop)/2}% 0,${100-(100-s.wBottom)/2}% 100%,${(100-s.wBottom)/2}% 100%)`}}/>
                 <span className="relative z-10 text-gray-900 font-bold text-lg drop-shadow-sm">{fmtN(s.value)}</span>
               </div>
               <div className="w-[35%] flex items-start pl-6 relative">
@@ -261,13 +262,13 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const t = data.totals; const alerts: any[] = []
-  if (t.cpr>3)        alerts.push({ title:'CPR Critique',       desc:`CPR à $${fmt(t.cpr)}`,       type:'red',    icon:'🚨' })
-  else if(t.cpr<1.5)  alerts.push({ title:'CPR Excellent',       desc:`CPR à $${fmt(t.cpr)} !`,     type:'green',  icon:'🟢' })
-  if (t.frequency>3)  alerts.push({ title:'Saturation Audience', desc:`Fréquence ${fmt(t.frequency)}`, type:'orange', icon:'⚠️' })
-  if (t.hookRate<20)  alerts.push({ title:'Hook Rate Faible',    desc:`${fmt(t.hookRate)}%`,         type:'orange', icon:'📊' })
-  if (t.ctr_link<2)   alerts.push({ title:'CTR Faible',          desc:`${fmt(t.ctr_link)}%`,         type:'orange', icon:'📌' })
-  if (t.roas>10)      alerts.push({ title:'ROAS Exceptionnel',   desc:`${fmt(t.roas)}x !`,           type:'green',  icon:'🏆' })
+  const t=data.totals; const alerts:any[]=[]
+  if(t.cpr>3)       alerts.push({title:'CPR Critique',      desc:`CPR à $${fmt(t.cpr)}`,       type:'red',   icon:'🚨'})
+  else if(t.cpr<1.5)alerts.push({title:'CPR Excellent',      desc:`CPR à $${fmt(t.cpr)} !`,     type:'green', icon:'🟢'})
+  if(t.frequency>3) alerts.push({title:'Saturation Audience',desc:`Fréquence ${fmt(t.frequency)}`,type:'orange',icon:'⚠️'})
+  if(t.hookRate<20) alerts.push({title:'Hook Rate Faible',   desc:`${fmt(t.hookRate)}%`,         type:'orange',icon:'📊'})
+  if(t.ctr_link<2)  alerts.push({title:'CTR Faible',         desc:`${fmt(t.ctr_link)}%`,         type:'orange',icon:'📌'})
+  if(t.roas>10)     alerts.push({title:'ROAS Exceptionnel',  desc:`${fmt(t.roas)}x !`,           type:'green', icon:'🏆'})
   if(alerts.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
       <div className="text-4xl mb-4">✅</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
@@ -286,12 +287,12 @@ function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const daily = data.daily||[]; const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
-  const charts = [
-    { title:'ROAS',     dataKey:'roas',      color:'#10b981', prefix:'',  suffix:'x' },
-    { title:'CPR',      dataKey:'cpr',       color:'#ef4444', prefix:'$', suffix:''  },
-    { title:'Dépenses',  dataKey:'spend',     color:'#3b82f6', prefix:'$', suffix:''  },
-    { title:'Achats',   dataKey:'purchases', color:'#8b5cf6', prefix:'',  suffix:''  },
+  const daily=data.daily||[]; const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
+  const charts=[
+    {title:'ROAS',    dataKey:'roas',     color:'#10b981',prefix:'', suffix:'x'},
+    {title:'CPR',     dataKey:'cpr',      color:'#ef4444',prefix:'$',suffix:'' },
+    {title:'Dépenses', dataKey:'spend',    color:'#3b82f6',prefix:'$',suffix:'' },
+    {title:'Achats',  dataKey:'purchases',color:'#8b5cf6',prefix:'', suffix:'' },
   ]
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -299,12 +300,12 @@ function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
         <div key={i} className={`rounded-xl p-6 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
           <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 ${dark?'text-gray-400':'text-gray-500'}`}>{c.title} par jour</h3>
           <div className="h-[200px]"><ResponsiveContainer width="100%" height="100%">
-            <LineChart data={daily} margin={{ top:5,right:10,left:-20,bottom:0 }}>
+            <LineChart data={daily} margin={{top:5,right:10,left:-20,bottom:0}}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false}/>
               <XAxis dataKey="date" stroke={textColor} fontSize={12} tickLine={false} axisLine={false}/>
               <YAxis stroke={textColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={v=>`${c.prefix}${v}${c.suffix}`}/>
-              <Tooltip contentStyle={{ backgroundColor:dark?'#1f2937':'#fff', borderColor:dark?'#374151':'#e5e7eb', borderRadius:'8px' }} formatter={(v:number)=>[`${c.prefix}${fmt(v)}${c.suffix}`,c.title]}/>
-              <Line type="monotone" dataKey={c.dataKey} stroke={c.color} strokeWidth={3} dot={{ r:4,fill:c.color }} activeDot={{ r:6 }}/>
+              <Tooltip contentStyle={{backgroundColor:dark?'#1f2937':'#fff',borderColor:dark?'#374151':'#e5e7eb',borderRadius:'8px'}} formatter={(v:number)=>[`${c.prefix}${fmt(v)}${c.suffix}`,c.title]}/>
+              <Line type="monotone" dataKey={c.dataKey} stroke={c.color} strokeWidth={3} dot={{r:4,fill:c.color}} activeDot={{r:6}}/>
             </LineChart>
           </ResponsiveContainer></div>
         </div>
@@ -313,19 +314,17 @@ function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-function SettingsTab({ dark, metaToken, setMetaToken, metaBmId, setMetaBmId }: {
+function SettingsTab({ dark, metaToken, setMetaToken }: {
   dark: boolean
-  metaToken: string; setMetaToken: (v: string) => void
-  metaBmId: string;  setMetaBmId:  (v: string) => void
+  metaToken: string
+  setMetaToken: (v: string) => void
 }) {
   const [tempToken, setTempToken] = useState(metaToken)
-  const [tempBmId,  setTempBmId]  = useState(metaBmId)
   const [saved, setSaved] = useState(false)
   const save = () => {
     localStorage.setItem('metaToken', tempToken)
-    localStorage.setItem('metaBmId',  tempBmId)
-    setMetaToken(tempToken); setMetaBmId(tempBmId)
-    setSaved(true); setTimeout(()=>setSaved(false),3000)
+    setMetaToken(tempToken)
+    setSaved(true); setTimeout(()=>setSaved(false), 3000)
   }
   return (
     <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm max-w-2xl mx-auto`}>
@@ -335,12 +334,7 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaBmId, setMetaBmId }: {
           <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Meta Access Token</label>
           <input type="password" value={tempToken} onChange={e=>setTempToken(e.target.value)} placeholder="EAAB..."
             className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
-        </div>
-        <div>
-          <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Business Manager ID (BM)</label>
-          <input type="text" value={tempBmId} onChange={e=>setTempBmId(e.target.value)} placeholder="23947848264907481"
-            className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
-          <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Toutes les campagnes du BM seront affichées automatiquement.</p>
+          <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Toutes les campagnes accessibles par ce token s’affichent automatiquement.</p>
         </div>
         <button onClick={save} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">Sauvegarder</button>
         {saved&&<div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 text-sm text-center font-semibold">✅ Sauvegardé !</div>}
@@ -350,19 +344,19 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaBmId, setMetaBmId }: {
 }
 
 const TABS = [
-  { id: 'overview'  as Tab, label: '📊 Vue Générale' },
-  { id: 'campaigns' as Tab, label: '🎯 Campagnes'    },
-  { id: 'creative'  as Tab, label: '🎨 Créatifs'     },
-  { id: 'funnel'    as Tab, label: '📉 Funnel'       },
-  { id: 'alerts'    as Tab, label: '🚨 Alertes'      },
-  { id: 'history'   as Tab, label: '📈 Historique'   },
+  {id:'overview'  as Tab, label:'📊 Vue Générale'},
+  {id:'campaigns' as Tab, label:'🎯 Campagnes'   },
+  {id:'creative'  as Tab, label:'🎨 Créatifs'    },
+  {id:'funnel'    as Tab, label:'📉 Funnel'      },
+  {id:'alerts'    as Tab, label:'🚨 Alertes'     },
+  {id:'history'   as Tab, label:'📈 Historique'  },
 ]
 const DATES = [
-  { value: 'today'      as DatePreset, label: "Aujourd'hui"      },
-  { value: 'yesterday'  as DatePreset, label: 'Hier'             },
-  { value: 'last_7d'    as DatePreset, label: '7 derniers jours' },
-  { value: 'last_30d'   as DatePreset, label: '30 derniers jours'},
-  { value: 'this_month' as DatePreset, label: 'Ce mois'          },
+  {value:'today'      as DatePreset, label:"Aujourd'hui"      },
+  {value:'yesterday'  as DatePreset, label:'Hier'             },
+  {value:'last_7d'    as DatePreset, label:'7 derniers jours' },
+  {value:'last_30d'   as DatePreset, label:'30 derniers jours'},
+  {value:'this_month' as DatePreset, label:'Ce mois'          },
 ]
 
 export default function Index() {
@@ -373,7 +367,6 @@ export default function Index() {
   const [data,    setData]    = useState<MetaData|null>(null)
   const [error,   setError]   = useState<string|null>(null)
   const [metaToken, setMetaToken] = useState(()=>localStorage.getItem('metaToken')||'')
-  const [metaBmId,  setMetaBmId]  = useState(()=>localStorage.getItem('metaBmId') ||'')
 
   useEffect(()=>{
     document.documentElement.classList.toggle('dark',dark)
@@ -381,18 +374,17 @@ export default function Index() {
   },[dark])
 
   const fetchData = async () => {
-    if (tab==='settings') return
+    if(tab==='settings') return
     setLoading(true); setError(null)
     try {
       const url = new URL('/api/meta', window.location.origin)
       url.searchParams.set('date_preset', preset)
-      if (metaToken) url.searchParams.set('access_token', metaToken)
-      if (metaBmId)  url.searchParams.set('bm_id', metaBmId)
+      if(metaToken) url.searchParams.set('access_token', metaToken)
       const r = await fetch(url.toString())
       const text = await r.text()
       let j: any
       try { j=JSON.parse(text) } catch { throw new Error('Réponse API invalide.') }
-      if (j.error) throw new Error(j.error)
+      if(j.error) throw new Error(j.error)
       setData(j)
     } catch(e:any) {
       setError(e.message||'Erreur inattendue'); setData(null)
@@ -445,10 +437,9 @@ export default function Index() {
           ))}
         </div>
       </header>
-
       <main className="max-w-screen-2xl mx-auto px-6 py-8">
         {tab==='settings'?(
-          <SettingsTab dark={d} metaToken={metaToken} setMetaToken={setMetaToken} metaBmId={metaBmId} setMetaBmId={setMetaBmId}/>
+          <SettingsTab dark={d} metaToken={metaToken} setMetaToken={setMetaToken}/>
         ):(
           <>
             {loading&&(
