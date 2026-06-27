@@ -26,8 +26,7 @@ const CLS = {
 
 interface KPICardProps {
   label: string; value: string | React.ReactNode; icon: string; dark: boolean
-  metric?: MetricKey; metricValue?: number; trend?: number
-  sparklineData?: any[]; sparklineKey?: string; sparklineColor?: string
+  trend?: number; sparklineData?: any[]; sparklineKey?: string; sparklineColor?: string
 }
 function KPICard({ label, value, icon, dark, trend, sparklineData, sparklineKey, sparklineColor }: KPICardProps) {
   const isPos = trend !== undefined && trend >= 0
@@ -59,148 +58,77 @@ function KPICard({ label, value, icon, dark, trend, sparklineData, sparklineKey,
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === 'ACTIVE') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Active</span>
-  if (status === 'PAUSED') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400">Paused</span>
-  return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-600 dark:text-gray-400">Off</span>
+  if (status === 'ACTIVE') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600">Active</span>
+  if (status === 'PAUSED') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-600">Paused</span>
+  return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-600">Off</span>
 }
 
 function MetricCell({ metric, value, display }: { metric: MetricKey; value: number; display: string }) {
-  const color = metricColor(metric, value)
-  return <td className={`px-4 py-3.5 text-sm font-bold ${CLS[color].text}`}>{display}</td>
+  return <td className={`px-4 py-3.5 text-sm font-bold ${CLS[metricColor(metric, value)].text}`}>{display}</td>
 }
 
-// ═══ AD PERFORMANCE CHART — CURVES VERSION ══════════════════════════════════
 function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
   const hr        = a.hookRate || 0
-  const hookColor = hr > 25     ? '#10b981' : hr > 15         ? '#f59e0b' : '#ef4444'
+  const hookColor = hr > 25 ? '#10b981' : hr > 15 ? '#f59e0b' : '#ef4444'
   const roasColor = (a.roas||0) > 10 ? '#10b981' : (a.roas||0) > 5 ? '#f59e0b' : '#ef4444'
-  const cprColor  = (a.cpr||0)  < 1.5 ? '#10b981' : (a.cpr||0)  < 3  ? '#f59e0b' : '#ef4444'
-
+  const cprColor  = (a.cpr||0) < 1.5 ? '#10b981' : (a.cpr||0) < 3 ? '#f59e0b' : '#ef4444'
   const N = 18
-
-  // ROAS — Hill curve (diminishing returns, comme la courbe bleue)
-  const roasCurve = Array.from({ length: N }, (_, i) => {
-    const t = (i + 1) / N
-    return { i, v: +((a.roas || 0) * 1.4 * t / (t + 0.3)).toFixed(2) }
-  })
-
-  // CPR — Exponential decay (comme la courbe orange)
-  const cprCurve = Array.from({ length: N }, (_, i) => {
-    const t = (i + 1) / N
-    return { i, v: +((a.cpr || 0) * (0.5 + Math.exp(-t * 2.5) * 1.5)).toFixed(2) }
-  })
-
-  // ThruPlay — Linear (comme la courbe verte)
-  const thruCurve = Array.from({ length: N }, (_, i) => {
-    const t = (i + 1) / N
-    return { i, v: Math.round((a.thruplay || 0) * t) }
-  })
-
-  const bg    = dark ? '#0f172a' : '#f8fafc'
-  const r     = 34
-  const circ  = 2 * Math.PI * r
-  const hookDash = Math.min(hr / 60, 1) * circ
-  const track = dark ? '#1e293b' : '#e2e8f0'
-
-  const miniChart = (data: any[], color: string) => (
-    <div className="h-12">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-          <Line
-            type="monotone"
-            dataKey="v"
-            stroke={color}
-            strokeWidth={2.5}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+  const roasCurve = Array.from({ length: N }, (_, i) => { const t = (i+1)/N; return { i, v: +((a.roas||0)*1.4*t/(t+0.3)).toFixed(2) } })
+  const cprCurve  = Array.from({ length: N }, (_, i) => { const t = (i+1)/N; return { i, v: +((a.cpr||0)*(0.5+Math.exp(-t*2.5)*1.5)).toFixed(2) } })
+  const thruCurve = Array.from({ length: N }, (_, i) => { const t = (i+1)/N; return { i, v: Math.round((a.thruplay||0)*t) } })
+  const r = 34; const circ = 2*Math.PI*r
+  const hookDash = Math.min(hr/60,1)*circ
+  const bg = dark ? '#0f172a' : '#f8fafc'; const track = dark ? '#1e293b' : '#e2e8f0'
+  const mini = (data: any[], color: string) => (
+    <div className="h-12"><ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} margin={{ top:2,right:2,left:2,bottom:2 }}>
+        <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+      </LineChart>
+    </ResponsiveContainer></div>
   )
-
   return (
     <div className="p-4" style={{ background: bg }}>
-
-      {/* ── Hook Rate Gauge ── */}
       <div className="flex items-center gap-3 mb-4">
         <svg width="72" height="72" viewBox="0 0 100 100" className="shrink-0">
           <circle cx="50" cy="50" r={r} fill="none" stroke={track} strokeWidth="8" />
-          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="8"
-            strokeLinecap="round" strokeDasharray={`${hookDash} ${circ}`}
-            transform="rotate(-90 50 50)"
-            style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${hookDash} ${circ}`} transform="rotate(-90 50 50)" />
           <text x="50" y="46" textAnchor="middle" fill={hookColor} fontSize="13" fontWeight="800">{hr.toFixed(1)}%</text>
-          <text x="50" y="60" textAnchor="middle" fill={dark ? '#64748b' : '#94a3b8'} fontSize="7.5" fontWeight="600">HOOK RATE</text>
+          <text x="50" y="60" textAnchor="middle" fill={dark?'#64748b':'#94a3b8'} fontSize="7.5" fontWeight="600">HOOK RATE</text>
         </svg>
         <div>
-          <p className={`text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-slate-400' : 'text-slate-500'}`}>Hook Rate</p>
+          <p className={`text-[10px] font-semibold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>Hook Rate</p>
           <p className="text-xl font-bold" style={{ color: hookColor }}>{hr.toFixed(1)}%</p>
-          <p className={`text-[10px] ${dark ? 'text-slate-600' : 'text-slate-400'}`}>views 3s / impressions</p>
         </div>
       </div>
-
-      {/* ── ROAS Curve (Hill — vert) ── */}
-      <div className="mb-3">
-        <div className="flex justify-between items-center mb-0.5">
-          <span className={`text-[10px] font-bold uppercase tracking-wider ${dark ? 'text-slate-400' : 'text-slate-500'}`}>ROAS</span>
-          <span className="text-[11px] font-bold" style={{ color: roasColor }}>{(a.roas || 0).toFixed(1)}x</span>
-        </div>
-        {miniChart(roasCurve, roasColor)}
-      </div>
-
-      {/* ── CPR Curve (Exponentiel — orange) ── */}
-      <div className="mb-3">
-        <div className="flex justify-between items-center mb-0.5">
-          <span className={`text-[10px] font-bold uppercase tracking-wider ${dark ? 'text-slate-400' : 'text-slate-500'}`}>CPR</span>
-          <span className="text-[11px] font-bold" style={{ color: cprColor }}>${(a.cpr || 0).toFixed(2)}</span>
-        </div>
-        {miniChart(cprCurve, cprColor)}
-      </div>
-
-      {/* ── ThruPlay Curve (Linéaire — bleu) ── */}
-      <div>
-        <div className="flex justify-between items-center mb-0.5">
-          <span className={`text-[10px] font-bold uppercase tracking-wider ${dark ? 'text-slate-400' : 'text-slate-500'}`}>ThruPlay</span>
-          <span className={`text-[11px] font-bold ${dark ? 'text-blue-400' : 'text-blue-500'}`}>{fmtN(a.thruplay || 0)}</span>
-        </div>
-        {miniChart(thruCurve, '#60a5fa')}
-      </div>
-
+      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>ROAS</span><span className="text-[11px] font-bold" style={{ color: roasColor }}>{(a.roas||0).toFixed(1)}x</span></div>{mini(roasCurve,roasColor)}</div>
+      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>CPR</span><span className="text-[11px] font-bold" style={{ color: cprColor }}>${(a.cpr||0).toFixed(2)}</span></div>{mini(cprCurve,cprColor)}</div>
+      <div><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>ThruPlay</span><span className={`text-[11px] font-bold ${dark?'text-blue-400':'text-blue-500'}`}>{fmtN(a.thruplay||0)}</span></div>{mini(thruCurve,'#60a5fa')}</div>
     </div>
   )
 }
 
-// ═══ OVERVIEW TAB ════════════════════════════════════════════════════════════
 function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const t = data.totals
-  const daily = data.daily || []
+  const t = data.totals; const daily = data.daily || []
   const kpis: KPICardProps[] = [
-    { label: 'Spend',     value: `$${fmt(t.spend)}`,        icon: '💸', dark, trend: 12.5, sparklineData: daily, sparklineKey: 'spend',     sparklineColor: '#3b82f6' },
-    { label: 'Purchases', value: fmtN(t.purchases),         icon: '🛒', dark, trend: 8.2,  sparklineData: daily, sparklineKey: 'purchases', sparklineColor: '#8b5cf6' },
-    { label: 'CPR',       value: `$${fmt(t.cpr)}`,          icon: '🎯', dark, trend: -4.3, sparklineData: daily, sparklineKey: 'cpr',       sparklineColor: '#ef4444' },
-    { label: 'ROAS',      value: `${fmt(t.roas)}x`,         icon: '📈', dark, trend: 15.4, sparklineData: daily, sparklineKey: 'roas',      sparklineColor: '#10b981' },
-    { label: 'Budget/j',  value: `$${fmt(t.budget_total)}`, icon: '💰', dark },
+    { label:'Spend',     value:`$${fmt(t.spend)}`,        icon:'💸', dark, trend:12.5, sparklineData:daily, sparklineKey:'spend',     sparklineColor:'#3b82f6' },
+    { label:'Purchases', value:fmtN(t.purchases),         icon:'🛒', dark, trend:8.2,  sparklineData:daily, sparklineKey:'purchases', sparklineColor:'#8b5cf6' },
+    { label:'CPR',       value:`$${fmt(t.cpr)}`,          icon:'🎯', dark, trend:-4.3, sparklineData:daily, sparklineKey:'cpr',       sparklineColor:'#ef4444' },
+    { label:'ROAS',      value:`${fmt(t.roas)}x`,         icon:'📈', dark, trend:15.4, sparklineData:daily, sparklineKey:'roas',      sparklineColor:'#10b981' },
+    { label:'Budget/j',  value:`$${fmt(t.budget_total)}`, icon:'💰', dark },
   ]
-  const best = [...data.campaigns].filter(c => c.status === 'ACTIVE').sort((a, b) => b.roas - a.roas)[0]
+  const best = [...data.campaigns].filter(c=>c.status==='ACTIVE').sort((a,b)=>b.roas-a.roas)[0]
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {kpis.map((k, i) => <KPICard key={i} {...k} />)}
-      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">{kpis.map((k,i)=><KPICard key={i} {...k}/>)}</div>
       {best && (
-        <div className={`rounded-xl p-6 ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} border shadow-sm`}>
-          <p className={`text-sm font-semibold mb-4 ${dark ? 'text-gray-300' : 'text-gray-700'}`}>🏆 Top Campaign</p>
+        <div className={`rounded-xl p-6 ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} border shadow-sm`}>
+          <p className={`text-sm font-semibold mb-4 ${dark?'text-gray-300':'text-gray-700'}`}>🏆 Top Campaign</p>
           <div className="flex flex-wrap gap-x-12 gap-y-4">
-            {[['Nom', best.name, '', 'text'], ['ROAS', `${fmt(best.roas)}x`, 'roas', 'metric'], ['CPR', `$${fmt(best.cpr)}`, 'cpr', 'metric']]
-              .map(([l, v, mk, type]) => (
-                <div key={l as string}>
-                  <p className={`text-xs mb-1 ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{l}</p>
-                  {type === 'metric' && mk
-                    ? <p className={`text-2xl font-bold ${CLS[metricColor(mk as MetricKey, parseFloat(v as string))].text}`}>{v}</p>
-                    : <p className={`text-xl font-semibold truncate max-w-[300px] ${dark ? 'text-white' : 'text-gray-900'}`}>{v}</p>}
-                </div>
-              ))}
+            {[['Nom',best.name,'','text'],['ROAS',`${fmt(best.roas)}x`,'roas','metric'],['CPR',`$${fmt(best.cpr)}`,'cpr','metric']].map(([l,v,mk,type])=>(
+              <div key={l as string}><p className={`text-xs mb-1 ${dark?'text-gray-500':'text-gray-400'}`}>{l}</p>
+                {type==='metric'&&mk?<p className={`text-2xl font-bold ${CLS[metricColor(mk as MetricKey,parseFloat(v as string))].text}`}>{v}</p>:<p className={`text-xl font-semibold truncate max-w-[300px] ${dark?'text-white':'text-gray-900'}`}>{v}</p>}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -208,101 +136,78 @@ function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-// ═══ CAMPAIGNS TAB ═══════════════════════════════════════════════════════════
 function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const headers = ['Nom','Statut','Budget/j','Dépensé','Impressions','Couverture','Fréquence','CPM','CPC lien','CTR lien%','CTR tous%','Vues page','Coût/LPV','ATC','Coût/ATC','Abandon','Achats','Taux Conv.%','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
   return (
-    <div className={`rounded-xl overflow-hidden border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className={`border-b ${dark ? 'border-gray-800 bg-[#0f172a]' : 'border-gray-100 bg-gray-50/50'}`}>
-              {headers.map(h => <th key={h} className={`px-4 py-3 text-left text-xs font-medium whitespace-nowrap ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{h}</th>)}
+    <div className={`rounded-xl overflow-hidden border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <div className="overflow-x-auto"><table className="w-full text-sm">
+        <thead><tr className={`border-b ${dark?'border-gray-800 bg-[#0f172a]':'border-gray-100 bg-gray-50/50'}`}>
+          {headers.map(h=><th key={h} className={`px-4 py-3 text-left text-xs font-medium whitespace-nowrap ${dark?'text-gray-400':'text-gray-500'}`}>{h}</th>)}
+        </tr></thead>
+        <tbody className={`divide-y ${dark?'divide-gray-700/50':'divide-gray-100'}`}>
+          {data.campaigns.map((c:Campaign)=>(
+            <tr key={c.id} className={`transition-colors ${dark?'hover:bg-gray-700/40':'hover:bg-gray-50'}`}>
+              <td className={`px-4 py-3.5 font-semibold ${dark?'text-white':'text-gray-900'}`}><span className="block max-w-[160px] truncate">{c.name}</span></td>
+              <td className="px-4 py-3.5"><StatusBadge status={c.status}/></td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{c.daily_budget?`$${fmt(c.daily_budget,0)}`:'—'}</td>
+              <td className={`px-4 py-3.5 text-sm font-semibold ${dark?'text-white':'text-gray-900'}`}>${fmt(c.spend)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.impressions)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.reach)}</td>
+              <MetricCell metric="frequency" value={c.frequency} display={fmt(c.frequency,1)}/>
+              <MetricCell metric="cpm"       value={c.cpm}       display={`$${fmt(c.cpm)}`}/>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.cpc_link)}</td>
+              <MetricCell metric="ctr_link" value={c.ctr_link} display={`${fmt(c.ctr_link)}%`}/>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt(c.ctr_all)}%</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.lpv)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.spend/Math.max(c.lpv,1))}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.atc)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.costPerATC)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{c.atc-c.purchases}</td>
+              <td className={`px-4 py-3.5 text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{c.purchases}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt((c.purchases/Math.max(c.lpv,1))*100)}%</td>
+              <MetricCell metric="cpr"      value={c.cpr}      display={`$${fmt(c.cpr)}`}/>
+              <MetricCell metric="roas"     value={c.roas}     display={`${fmt(c.roas)}x`}/>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.revenue)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.thruplay)}</td>
+              <MetricCell metric="hookRate" value={c.hookRate} display={`${fmt(c.hookRate)}%`}/>
             </tr>
-          </thead>
-          <tbody className={`divide-y ${dark ? 'divide-gray-700/50' : 'divide-gray-100'}`}>
-            {data.campaigns.map((c: Campaign) => (
-              <tr key={c.id} className={`transition-colors ${dark ? 'hover:bg-gray-700/40' : 'hover:bg-gray-50'}`}>
-                <td className={`px-4 py-3.5 font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}><span className="block max-w-[160px] truncate">{c.name}</span></td>
-                <td className="px-4 py-3.5"><StatusBadge status={c.status} /></td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{c.daily_budget ? `$${fmt(c.daily_budget,0)}` : '—'}</td>
-                <td className={`px-4 py-3.5 text-sm font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>${fmt(c.spend)}</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{fmtN(c.impressions)}</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{fmtN(c.reach)}</td>
-                <MetricCell metric="frequency" value={c.frequency} display={fmt(c.frequency,1)} />
-                <MetricCell metric="cpm"       value={c.cpm}       display={`$${fmt(c.cpm)}`} />
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>${fmt(c.cpc_link)}</td>
-                <MetricCell metric="ctr_link" value={c.ctr_link} display={`${fmt(c.ctr_link)}%`} />
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{fmt(c.ctr_all)}%</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{fmtN(c.lpv)}</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>${fmt(c.spend/Math.max(c.lpv,1))}</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{fmtN(c.atc)}</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>${fmt(c.costPerATC)}</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{c.atc-c.purchases}</td>
-                <td className={`px-4 py-3.5 text-sm font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>{c.purchases}</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{fmt((c.purchases/Math.max(c.lpv,1))*100)}%</td>
-                <MetricCell metric="cpr"      value={c.cpr}      display={`$${fmt(c.cpr)}`} />
-                <MetricCell metric="roas"     value={c.roas}     display={`${fmt(c.roas)}x`} />
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>${fmt(c.revenue)}</td>
-                <td className={`px-4 py-3.5 text-sm ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{fmtN(c.thruplay)}</td>
-                <MetricCell metric="hookRate" value={c.hookRate} display={`${fmt(c.hookRate)}%`} />
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table></div>
     </div>
   )
 }
 
-// ═══ CREATIVE TAB ═════════════════════════════════════════════════════════════
 function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const sortedAds = [...(data.ads || [])].sort((a, b) => b.roas - a.roas)
-  if (sortedAds.length === 0) {
-    return (
-      <div className={`rounded-xl p-12 text-center border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
-        <div className="text-4xl mb-4">🎨</div>
-        <h3 className={`text-xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Aucun créatif actif</h3>
-      </div>
-    )
-  }
+  const sortedAds = [...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
+  if (sortedAds.length===0) return (
+    <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <div className="text-4xl mb-4">🎨</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucun créatif actif</h3>
+    </div>
+  )
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {sortedAds.map((a: Ad) => (
-        <div key={a.id} className={`rounded-xl overflow-hidden border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm flex flex-col`}>
-
-          {/* Zone image / vidéo */}
+      {sortedAds.map((a:Ad)=>(
+        <div key={a.id} className={`rounded-xl overflow-hidden border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm flex flex-col`}>
           <div className="relative w-full h-44 overflow-hidden">
-            {a.thumbnail ? (
-              <img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover"
-                onError={e => { e.currentTarget.style.display='none'; (e.currentTarget.nextSibling as HTMLElement)?.classList?.remove('hidden') }} />
-            ) : null}
-            <div className={`${a.thumbnail ? 'hidden' : ''} absolute inset-0 flex items-center justify-center ${dark ? 'bg-[#0f172a]' : 'bg-gray-100'}`}>
-              <span className="text-5xl opacity-30">🎬</span>
-            </div>
+            {a.thumbnail?<img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover" onError={e=>{e.currentTarget.style.display='none';(e.currentTarget.nextSibling as HTMLElement)?.classList?.remove('hidden')}}/>:null}
+            <div className={`${a.thumbnail?'hidden':''} absolute inset-0 flex items-center justify-center ${dark?'bg-[#0f172a]':'bg-gray-100'}`}><span className="text-5xl opacity-30">🎬</span></div>
             <div className="absolute top-2 left-2 flex gap-1.5">
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-black/70 text-white">▶ Video</span>
-              {a.status === 'ACTIVE' && <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-500/90 text-white">Live</span>}
+              {a.status==='ACTIVE'&&<span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-500/90 text-white">Live</span>}
             </div>
-            {a.roas > 10 && <div className="absolute top-2 right-2"><span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-yellow-400/90 text-gray-900">⭐ Top</span></div>}
+            {a.roas>10&&<div className="absolute top-2 right-2"><span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-yellow-400/90 text-gray-900">⭐ Top</span></div>}
           </div>
-
-          {/* Curves chart */}
-          <div className={`border-t border-b ${dark ? 'border-gray-800' : 'border-gray-100'}`}>
-            <AdPerformanceChart a={a} dark={dark} />
-          </div>
-
-          {/* Title + metrics */}
+          <div className={`border-t border-b ${dark?'border-gray-800':'border-gray-100'}`}><AdPerformanceChart a={a} dark={dark}/></div>
           <div className="px-4 pb-4 flex-1 flex flex-col">
-            <h4 className={`font-bold text-sm my-3 line-clamp-2 ${dark ? 'text-white' : 'text-gray-900'}`}>{a.name}</h4>
+            <h4 className={`font-bold text-sm my-3 line-clamp-2 ${dark?'text-white':'text-gray-900'}`}>{a.name}</h4>
             <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-auto text-sm">
-              {[['Spend',`$${fmt(a.spend)}`],['Impressions',fmtN(a.impressions)],['ATC',fmtN(a.atc)],['Coût/ATC',`$${fmt(a.spend/Math.max(a.atc,1))}`],['Achats',fmtN(a.purchases)],['CTR',`${fmt(a.ctr_link)}%`]]
-                .map(([l,v]) => (
-                  <div key={l} className="flex flex-col">
-                    <span className={`text-[10px] uppercase ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{l}</span>
-                    <span className={`font-semibold ${dark ? 'text-gray-200' : 'text-gray-700'}`}>{v}</span>
-                  </div>
-                ))}
+              {[['Spend',`$${fmt(a.spend)}`],['Impressions',fmtN(a.impressions)],['ATC',fmtN(a.atc)],['Coût/ATC',`$${fmt(a.spend/Math.max(a.atc,1))}`],['Achats',fmtN(a.purchases)],['CTR',`${fmt(a.ctr_link)}%`]].map(([l,v])=>(
+                <div key={l} className="flex flex-col">
+                  <span className={`text-[10px] uppercase ${dark?'text-gray-500':'text-gray-400'}`}>{l}</span>
+                  <span className={`font-semibold ${dark?'text-gray-200':'text-gray-700'}`}>{v}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -311,162 +216,139 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-// ═══ FUNNEL TAB ══════════════════════════════════════════════════════════════
 function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t = data.totals
   const steps = [
-    { label: 'Clics lien',    value: t.clicks_link, bg: 'bg-[#fbcfe8]', wTop: 100, wBottom: 85 },
-    { label: 'Vues page',     value: t.lpv,         bg: 'bg-[#f9a8d4]', wTop: 82,  wBottom: 67 },
-    { label: 'Ajouts Panier', value: t.atc,         bg: 'bg-[#f472b6]', wTop: 64,  wBottom: 49 },
-    { label: 'Achats',        value: t.purchases,   bg: 'bg-[#ec4899]', wTop: 46,  wBottom: 31 },
+    { label:'Clics lien',    value:t.clicks_link, bg:'bg-[#fbcfe8]', wTop:100, wBottom:85 },
+    { label:'Vues page',     value:t.lpv,         bg:'bg-[#f9a8d4]', wTop:82,  wBottom:67 },
+    { label:'Ajouts Panier', value:t.atc,         bg:'bg-[#f472b6]', wTop:64,  wBottom:49 },
+    { label:'Achats',        value:t.purchases,   bg:'bg-[#ec4899]', wTop:46,  wBottom:31 },
   ]
   const metrics = [
-    { label: 'Taux ATC',             value: `${fmt((t.atc/Math.max(t.lpv,1))*100)}%` },
-    { label: 'Abandon (ATC-Achats)', value: t.atc-t.purchases },
-    { label: 'Taux Conversion',       value: `${fmt((t.purchases/Math.max(t.lpv,1))*100)}%` },
-    { label: 'Coût / ATC',           value: `$${fmt(t.costPerATC)}` },
-    { label: 'Coût / LPV',           value: `$${fmt(t.costPerLPV)}` },
+    { label:'Taux ATC',             value:`${fmt((t.atc/Math.max(t.lpv,1))*100)}%` },
+    { label:'Abandon (ATC-Achats)', value:t.atc-t.purchases },
+    { label:'Taux Conversion',       value:`${fmt((t.purchases/Math.max(t.lpv,1))*100)}%` },
+    { label:'Coût/ATC',             value:`$${fmt(t.costPerATC)}` },
+    { label:'Coût/LPV',             value:`$${fmt(t.costPerLPV)}` },
   ]
   return (
-    <div className={`rounded-xl p-8 border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
+    <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
       <div className="flex justify-center mb-16 mt-8">
         <div className="flex flex-col w-full max-w-4xl mx-auto gap-2 py-4">
-          {steps.map((s, i) => {
-            const prev = i > 0 ? steps[i-1].value : null
-            const conv = prev ? ((s.value/Math.max(prev,1))*100) : null
-            return (
-              <div key={i} className="w-full flex h-16 sm:h-20 relative">
-                <div className="w-[35%] flex items-center justify-end pr-4">
-                  <span className={`text-xs sm:text-base font-medium text-right ${dark ? 'text-gray-200' : 'text-gray-900'}`}>{s.label}</span>
-                </div>
-                <div className="w-[30%] relative flex items-center justify-center">
-                  <div className={`absolute inset-0 ${s.bg}`} style={{ clipPath: `polygon(${(100-s.wTop)/2}% 0,${100-(100-s.wTop)/2}% 0,${100-(100-s.wBottom)/2}% 100%,${(100-s.wBottom)/2}% 100%)` }} />
-                  <span className="relative z-10 text-gray-900 font-bold text-lg drop-shadow-sm">{fmtN(s.value)}</span>
-                </div>
-                <div className="w-[35%] flex items-start pl-6 relative">
-                  {i > 0 && <div className="absolute -top-9 left-4"><div className={`text-[10px] font-bold px-2 py-1 rounded-full border ${dark ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>{fmt(conv)}%</div></div>}
-                </div>
+          {steps.map((s,i)=>{
+            const prev = i>0?steps[i-1].value:null; const conv = prev?((s.value/Math.max(prev,1))*100):null
+            return (<div key={i} className="w-full flex h-16 sm:h-20 relative">
+              <div className="w-[35%] flex items-center justify-end pr-4"><span className={`text-xs sm:text-base font-medium text-right ${dark?'text-gray-200':'text-gray-900'}`}>{s.label}</span></div>
+              <div className="w-[30%] relative flex items-center justify-center">
+                <div className={`absolute inset-0 ${s.bg}`} style={{ clipPath:`polygon(${(100-s.wTop)/2}% 0,${100-(100-s.wTop)/2}% 0,${100-(100-s.wBottom)/2}% 100%,${(100-s.wBottom)/2}% 100%)` }}/>
+                <span className="relative z-10 text-gray-900 font-bold text-lg drop-shadow-sm">{fmtN(s.value)}</span>
               </div>
-            )
+              <div className="w-[35%] flex items-start pl-6 relative">
+                {i>0&&<div className="absolute -top-9 left-4"><div className={`text-[10px] font-bold px-2 py-1 rounded-full border ${dark?'bg-gray-800 border-gray-700 text-gray-400':'bg-gray-50 border-gray-200 text-gray-500'}`}>{fmt(conv)}%</div></div>}
+              </div>
+            </div>)
           })}
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-8 border-t border-gray-200 dark:border-gray-700">
-        {metrics.map((m,i) => (
-          <div key={i} className="text-center">
-            <div className={`text-xs uppercase tracking-wider mb-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{m.label}</div>
-            <div className={`text-xl sm:text-2xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>{m.value}</div>
-          </div>
-        ))}
+        {metrics.map((m,i)=>(<div key={i} className="text-center">
+          <div className={`text-xs uppercase tracking-wider mb-2 ${dark?'text-gray-400':'text-gray-500'}`}>{m.label}</div>
+          <div className={`text-xl sm:text-2xl font-bold ${dark?'text-white':'text-gray-900'}`}>{m.value}</div>
+        </div>))}
       </div>
     </div>
   )
 }
 
-// ═══ ALERTS TAB ══════════════════════════════════════════════════════════════
 function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const t = data.totals
-  const alerts: any[] = []
-  if (t.cpr > 3)        alerts.push({ title: 'CPR Critique',       desc: `CPR à $${fmt(t.cpr)}`,         type: 'red',    icon: '🚨' })
-  else if (t.cpr < 1.5) alerts.push({ title: 'CPR Excellent',       desc: `CPR à $${fmt(t.cpr)} !`,        type: 'green',  icon: '🟢' })
-  if (t.frequency > 3)  alerts.push({ title: 'Saturation Audience', desc: `Fréquence ${fmt(t.frequency)}`, type: 'orange', icon: '⚠️' })
-  if (t.hookRate < 20)  alerts.push({ title: 'Hook Rate Faible',    desc: `${fmt(t.hookRate)}%`,           type: 'orange', icon: '📊' })
-  if (t.ctr_link < 2)   alerts.push({ title: 'CTR Faible',          desc: `${fmt(t.ctr_link)}%`,           type: 'orange', icon: '📌' })
-  if (t.roas > 10)      alerts.push({ title: 'ROAS Exceptionnel',   desc: `${fmt(t.roas)}x !`,             type: 'green',  icon: '🏆' })
-  if (alerts.length === 0) return (
-    <div className={`rounded-xl p-12 text-center border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">✅</div><h3 className={`text-xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Tout est au vert !</h3>
+  const t = data.totals; const alerts: any[] = []
+  if (t.cpr>3)        alerts.push({ title:'CPR Critique',       desc:`CPR à $${fmt(t.cpr)}`,       type:'red',    icon:'🚨' })
+  else if(t.cpr<1.5)  alerts.push({ title:'CPR Excellent',       desc:`CPR à $${fmt(t.cpr)} !`,     type:'green',  icon:'🟢' })
+  if (t.frequency>3)  alerts.push({ title:'Saturation Audience', desc:`Fréquence ${fmt(t.frequency)}`, type:'orange', icon:'⚠️' })
+  if (t.hookRate<20)  alerts.push({ title:'Hook Rate Faible',    desc:`${fmt(t.hookRate)}%`,         type:'orange', icon:'📊' })
+  if (t.ctr_link<2)   alerts.push({ title:'CTR Faible',          desc:`${fmt(t.ctr_link)}%`,         type:'orange', icon:'📌' })
+  if (t.roas>10)      alerts.push({ title:'ROAS Exceptionnel',   desc:`${fmt(t.roas)}x !`,           type:'green',  icon:'🏆' })
+  if(alerts.length===0) return (
+    <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <div className="text-4xl mb-4">✅</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
     </div>
   )
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {alerts.map((a, i) => {
-        const c = CLS[a.type as keyof typeof CLS]
-        return (
-          <div key={i} className={`rounded-xl p-6 border ${c.border} ${c.bg} shadow-sm flex items-start gap-4`}>
-            <div className="text-3xl">{a.icon}</div>
-            <div><h4 className={`text-lg font-bold ${c.text}`}>{a.title}</h4><p className={`mt-1 text-sm ${dark ? 'text-gray-300' : 'text-gray-700'}`}>{a.desc}</p></div>
-          </div>
-        )
-      })}
+      {alerts.map((a,i)=>{ const c=CLS[a.type as keyof typeof CLS]; return (
+        <div key={i} className={`rounded-xl p-6 border ${c.border} ${c.bg} shadow-sm flex items-start gap-4`}>
+          <div className="text-3xl">{a.icon}</div>
+          <div><h4 className={`text-lg font-bold ${c.text}`}>{a.title}</h4><p className={`mt-1 text-sm ${dark?'text-gray-300':'text-gray-700'}`}>{a.desc}</p></div>
+        </div>
+      )})}
     </div>
   )
 }
 
-// ═══ HISTORY TAB ══════════════════════════════════════════════════════════════
 function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const daily = data.daily || []
-  const gridColor = dark ? '#374151' : '#e5e7eb'
-  const textColor = dark ? '#9ca3af' : '#6b7280'
+  const daily = data.daily||[]; const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
   const charts = [
-    { title: 'ROAS',      dataKey: 'roas',      color: '#10b981', prefix: '', suffix: 'x' },
-    { title: 'CPR',       dataKey: 'cpr',       color: '#ef4444', prefix: '$', suffix: '' },
-    { title: 'Dépenses',  dataKey: 'spend',     color: '#3b82f6', prefix: '$', suffix: '' },
-    { title: 'Achats',    dataKey: 'purchases', color: '#8b5cf6', prefix: '', suffix: '' },
+    { title:'ROAS',     dataKey:'roas',      color:'#10b981', prefix:'',  suffix:'x' },
+    { title:'CPR',      dataKey:'cpr',       color:'#ef4444', prefix:'$', suffix:''  },
+    { title:'Dépenses',  dataKey:'spend',     color:'#3b82f6', prefix:'$', suffix:''  },
+    { title:'Achats',   dataKey:'purchases', color:'#8b5cf6', prefix:'',  suffix:''  },
   ]
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {charts.map((c, i) => (
-        <div key={i} className={`rounded-xl p-6 border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
-          <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{c.title} par jour</h3>
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={daily} margin={{ top:5, right:10, left:-20, bottom:0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                <XAxis dataKey="date" stroke={textColor} fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke={textColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={v => `${c.prefix}${v}${c.suffix}`} />
-                <Tooltip contentStyle={{ backgroundColor: dark ? '#1f2937':'#fff', borderColor: dark ? '#374151':'#e5e7eb', borderRadius:'8px' }}
-                  formatter={(v: number) => [`${c.prefix}${fmt(v)}${c.suffix}`, c.title]} />
-                <Line type="monotone" dataKey={c.dataKey} stroke={c.color} strokeWidth={3} dot={{ r:4, fill:c.color }} activeDot={{ r:6 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+      {charts.map((c,i)=>(
+        <div key={i} className={`rounded-xl p-6 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+          <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 ${dark?'text-gray-400':'text-gray-500'}`}>{c.title} par jour</h3>
+          <div className="h-[200px]"><ResponsiveContainer width="100%" height="100%">
+            <LineChart data={daily} margin={{ top:5,right:10,left:-20,bottom:0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false}/>
+              <XAxis dataKey="date" stroke={textColor} fontSize={12} tickLine={false} axisLine={false}/>
+              <YAxis stroke={textColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={v=>`${c.prefix}${v}${c.suffix}`}/>
+              <Tooltip contentStyle={{ backgroundColor:dark?'#1f2937':'#fff', borderColor:dark?'#374151':'#e5e7eb', borderRadius:'8px' }} formatter={(v:number)=>[`${c.prefix}${fmt(v)}${c.suffix}`,c.title]}/>
+              <Line type="monotone" dataKey={c.dataKey} stroke={c.color} strokeWidth={3} dot={{ r:4,fill:c.color }} activeDot={{ r:6 }}/>
+            </LineChart>
+          </ResponsiveContainer></div>
         </div>
       ))}
     </div>
   )
 }
 
-// ═══ SETTINGS TAB ══════════════════════════════════════════════════════════════
-function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAdAccountId }: {
-  dark: boolean; metaToken: string; setMetaToken: (v: string) => void
-  metaAdAccountId: string; setMetaAdAccountId: (v: string) => void
+function SettingsTab({ dark, metaToken, setMetaToken, metaBmId, setMetaBmId }: {
+  dark: boolean
+  metaToken: string; setMetaToken: (v: string) => void
+  metaBmId: string;  setMetaBmId:  (v: string) => void
 }) {
   const [tempToken, setTempToken] = useState(metaToken)
-  const [tempId, setTempId]       = useState(metaAdAccountId)
-  const [saved, setSaved]         = useState(false)
+  const [tempBmId,  setTempBmId]  = useState(metaBmId)
+  const [saved, setSaved] = useState(false)
   const save = () => {
-    localStorage.setItem('metaToken', tempToken); localStorage.setItem('metaAdAccountId', tempId)
-    setMetaToken(tempToken); setMetaAdAccountId(tempId)
-    setSaved(true); setTimeout(() => setSaved(false), 3000)
+    localStorage.setItem('metaToken', tempToken)
+    localStorage.setItem('metaBmId',  tempBmId)
+    setMetaToken(tempToken); setMetaBmId(tempBmId)
+    setSaved(true); setTimeout(()=>setSaved(false),3000)
   }
   return (
-    <div className={`rounded-xl p-8 border ${dark ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'} shadow-sm max-w-2xl mx-auto`}>
-      <h2 className={`text-2xl font-bold mb-6 ${dark ? 'text-white' : 'text-gray-900'}`}>⚙️ Paramètres API</h2>
+    <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm max-w-2xl mx-auto`}>
+      <h2 className={`text-2xl font-bold mb-6 ${dark?'text-white':'text-gray-900'}`}>⚙️ Paramètres API</h2>
       <div className="space-y-6">
         <div>
-          <label className={`block text-sm font-semibold mb-2 ${dark ? 'text-gray-300' : 'text-gray-700'}`}>Meta Access Token</label>
-          <input type="password" value={tempToken} onChange={e => setTempToken(e.target.value)} placeholder="EAAB..."
-            className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-300 text-gray-900'}`} />
+          <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Meta Access Token</label>
+          <input type="password" value={tempToken} onChange={e=>setTempToken(e.target.value)} placeholder="EAAB..."
+            className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
         </div>
         <div>
-          <label className={`block text-sm font-semibold mb-2 ${dark ? 'text-gray-300' : 'text-gray-700'}`}>Ad Account ID</label>
-          <input type="text" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="884019833957409"
-            className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-300 text-gray-900'}`} />
+          <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Business Manager ID (BM)</label>
+          <input type="text" value={tempBmId} onChange={e=>setTempBmId(e.target.value)} placeholder="23947848264907481"
+            className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
+          <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Toutes les campagnes du BM seront affichées automatiquement.</p>
         </div>
         <button onClick={save} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">Sauvegarder</button>
-        {saved && <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 text-sm text-center font-semibold">✅ Sauvegardé !</div>}
+        {saved&&<div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 text-sm text-center font-semibold">✅ Sauvegardé !</div>}
       </div>
     </div>
   )
 }
 
-// ═══ CONSTANTS ════════════════════════════════════════════════════════════════
-const STORES = [
-  { id: 'zaya',   name: 'Zaya Shop',       accountId: '884019833957409', pageId: '101595636037933', disabled: false },
-  { id: 'meli',   name: 'Meli Fashion',    accountId: '746014064682147', pageId: '301006079773008', disabled: false },
-  { id: 'divine', name: 'Divine Boutique', accountId: '884019833957409', pageId: '534799229723164', disabled: false },
-]
 const TABS = [
   { id: 'overview'  as Tab, label: '📊 Vue Générale' },
   { id: 'campaigns' as Tab, label: '🎯 Campagnes'    },
@@ -476,136 +358,120 @@ const TABS = [
   { id: 'history'   as Tab, label: '📈 Historique'   },
 ]
 const DATES = [
-  { value: 'today'      as DatePreset, label: "Aujourd'hui"       },
-  { value: 'yesterday'  as DatePreset, label: 'Hier'              },
-  { value: 'last_7d'    as DatePreset, label: '7 derniers jours'  },
-  { value: 'last_30d'   as DatePreset, label: '30 derniers jours' },
-  { value: 'this_month' as DatePreset, label: 'Ce mois'           },
+  { value: 'today'      as DatePreset, label: "Aujourd'hui"      },
+  { value: 'yesterday'  as DatePreset, label: 'Hier'             },
+  { value: 'last_7d'    as DatePreset, label: '7 derniers jours' },
+  { value: 'last_30d'   as DatePreset, label: '30 derniers jours'},
+  { value: 'this_month' as DatePreset, label: 'Ce mois'          },
 ]
 
-// ═══ MAIN ══════════════════════════════════════════════════════════════════════
 export default function Index() {
-  const [dark,   setDark]   = useState(() => localStorage.getItem('theme') !== 'light')
-  const [tab,    setTab]    = useState<Tab>('overview')
-  const [preset, setPreset] = useState<DatePreset>('last_7d')
-  const [store,  setStore]  = useState(STORES[0].id)
-  const [loading,setLoading]= useState(true)
-  const [data,   setData]   = useState<MetaData | null>(null)
-  const [error,  setError]  = useState<string | null>(null)
-  const [metaToken,       setMetaToken]       = useState(() => localStorage.getItem('metaToken')        || '')
-  const [metaAdAccountId, setMetaAdAccountId] = useState(() => localStorage.getItem('metaAdAccountId') || '')
+  const [dark,    setDark]    = useState(()=>localStorage.getItem('theme')!=='light')
+  const [tab,     setTab]     = useState<Tab>('overview')
+  const [preset,  setPreset]  = useState<DatePreset>('last_7d')
+  const [loading, setLoading] = useState(true)
+  const [data,    setData]    = useState<MetaData|null>(null)
+  const [error,   setError]   = useState<string|null>(null)
+  const [metaToken, setMetaToken] = useState(()=>localStorage.getItem('metaToken')||'')
+  const [metaBmId,  setMetaBmId]  = useState(()=>localStorage.getItem('metaBmId') ||'')
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    localStorage.setItem('theme', dark ? 'dark' : 'light')
-  }, [dark])
+  useEffect(()=>{
+    document.documentElement.classList.toggle('dark',dark)
+    localStorage.setItem('theme',dark?'dark':'light')
+  },[dark])
 
   const fetchData = async () => {
-    if (tab === 'settings') return
+    if (tab==='settings') return
     setLoading(true); setError(null)
     try {
       const url = new URL('/api/meta', window.location.origin)
       url.searchParams.set('date_preset', preset)
       if (metaToken) url.searchParams.set('access_token', metaToken)
-      const id = metaAdAccountId || STORES.find(s => s.id === store)?.accountId || ''
-      if (id) url.searchParams.set('ad_account_id', id)
+      if (metaBmId)  url.searchParams.set('bm_id', metaBmId)
       const r = await fetch(url.toString())
       const text = await r.text()
       let j: any
-      try { j = JSON.parse(text) } catch { throw new Error('Réponse API invalide.') }
+      try { j=JSON.parse(text) } catch { throw new Error('Réponse API invalide.') }
       if (j.error) throw new Error(j.error)
-        // Filtre par Page ID
-      const currentStore = STORES.find(s => s.id === store)
-      if (currentStore?.pageId) {
-        j.campaigns = (j.campaigns || []).filter((c: any) => c.page_id === currentStore.pageId)
-        j.ads       = (j.ads       || []).filter((a: any) => a.page_id === currentStore.pageId)
-      }
-
       setData(j)
-      } catch (e: any) {
-      setError(e.message || 'Erreur inattendue')
-      setData(null)
+    } catch(e:any) {
+      setError(e.message||'Erreur inattendue'); setData(null)
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchData() }, [preset, store])
+  useEffect(()=>{ fetchData() },[preset])
 
   const d   = dark
-  const hdr = `${d ? 'bg-gray-900/95 border-gray-800' : 'bg-white/95 border-gray-200'} backdrop-blur-md`
-  const inp = `${d ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-700'} border rounded-lg px-3 py-2 text-sm outline-none`
-  const btn = `${d ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} p-2 rounded-lg transition-colors text-sm`
+  const hdr = `${d?'bg-gray-900/95 border-gray-800':'bg-white/95 border-gray-200'} backdrop-blur-md`
+  const inp = `${d?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-200 text-gray-700'} border rounded-lg px-3 py-2 text-sm outline-none`
+  const btn = `${d?'bg-gray-800 text-gray-300 hover:bg-gray-700':'bg-gray-100 text-gray-600 hover:bg-gray-200'} p-2 rounded-lg transition-colors text-sm`
 
   return (
-    <div className={`min-h-screen font-sans ${d ? 'bg-[#0f172a] text-gray-100' : 'bg-[#f8fafc] text-gray-900'}`}>
+    <div className={`min-h-screen font-sans ${d?'bg-[#0f172a] text-gray-100':'bg-[#f8fafc] text-gray-900'}`}>
       <header className={`border-b ${hdr} sticky top-0 z-50`}>
         <div className="max-w-screen-2xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6">
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="text-blue-500">⚡</span>
               <span className="font-extrabold tracking-tight">Ads</span>
-              <span className={`font-light text-sm ${d ? 'text-gray-500' : 'text-gray-400'}`}>Analyse</span>
+              <span className={`font-light text-sm ${d?'text-gray-500':'text-gray-400'}`}>Analyse</span>
             </div>
-            <div className="flex items-center gap-2">
-              <select value={store} onChange={e => setStore(e.target.value)} className={`${inp} font-bold border-blue-500/30 bg-blue-500/5 text-blue-600 dark:text-blue-400`}>
-                {STORES.map(s => <option key={s.id} value={s.id} disabled={s.disabled}>{s.name}{s.disabled ? ' (Indisponible)' : ''}</option>)}
-              </select>
-              <button onClick={() => setTab('settings')} className={`${btn} ${tab==='settings'?(d?'bg-gray-700':'bg-gray-200'):''}`}>⚙️</button>
-            </div>
-            <nav className={`hidden lg:flex p-1 rounded-xl ${d ? 'bg-[#1e293b]' : 'bg-gray-100/80'} shadow-inner`}>
-              {TABS.map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)}
+            <button onClick={()=>setTab('settings')} className={`${btn} ${tab==='settings'?(d?'bg-gray-700':'bg-gray-200'):''}`}>⚙️ Paramètres</button>
+            <nav className={`hidden lg:flex p-1 rounded-xl ${d?'bg-[#1e293b]':'bg-gray-100/80'} shadow-inner`}>
+              {TABS.map(t=>(
+                <button key={t.id} onClick={()=>setTab(t.id)}
                   className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                    tab===t.id
-                      ? (d?'bg-[#0f172a] text-white shadow border border-gray-800':'bg-white text-gray-900 shadow-sm border border-gray-200/50')
-                      : `border border-transparent ${d?'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50':'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'}`
+                    tab===t.id?(d?'bg-[#0f172a] text-white shadow border border-gray-800':'bg-white text-gray-900 shadow-sm border border-gray-200/50')
+                    :`border border-transparent ${d?'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50':'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'}`
                   }`}>{t.label}</button>
               ))}
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            <select value={preset} onChange={e => setPreset(e.target.value as DatePreset)} className={inp}>
-              {DATES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <select value={preset} onChange={e=>setPreset(e.target.value as DatePreset)} className={inp}>
+              {DATES.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <button onClick={fetchData} className={btn}>🔄</button>
-            <button onClick={() => setDark(!d)} className={btn}>{d?'☀️':'🌙'}</button>
+            <button onClick={()=>setDark(!d)} className={btn}>{d?'☀️':'🌙'}</button>
           </div>
         </div>
         <div className={`lg:hidden flex overflow-x-auto px-6 py-3 gap-2 border-t ${d?'border-gray-800 bg-[#0f172a]':'border-gray-200 bg-white'} no-scrollbar`}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
               className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                tab===t.id?(d?'bg-[#1e293b] text-white border border-gray-700':'bg-gray-100 text-gray-900 border border-gray-200'):`border border-transparent ${d?'text-gray-400':'text-gray-500'}`
+                tab===t.id?(d?'bg-[#1e293b] text-white border border-gray-700':'bg-gray-100 text-gray-900 border border-gray-200')
+                :`border border-transparent ${d?'text-gray-400':'text-gray-500'}`
               }`}>{t.label}</button>
           ))}
         </div>
       </header>
 
       <main className="max-w-screen-2xl mx-auto px-6 py-8">
-        {tab === 'settings' ? (
-          <SettingsTab dark={d} metaToken={metaToken} setMetaToken={setMetaToken} metaAdAccountId={metaAdAccountId} setMetaAdAccountId={setMetaAdAccountId} />
-        ) : (
+        {tab==='settings'?(
+          <SettingsTab dark={d} metaToken={metaToken} setMetaToken={setMetaToken} metaBmId={metaBmId} setMetaBmId={setMetaBmId}/>
+        ):(
           <>
-            {loading && (
+            {loading&&(
               <div className="flex flex-col items-center justify-center py-32 gap-4">
-                <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"/>
                 <p className="text-gray-400 text-sm">Chargement...</p>
               </div>
             )}
-            {!loading && error && (
+            {!loading&&error&&(
               <div className={`rounded-2xl p-10 text-center ${d?'bg-gray-800':'bg-white'} shadow-sm max-w-lg mx-auto mt-12`}>
                 <div className="text-5xl mb-4">❌</div>
                 <h3 className="text-xl font-bold text-red-400 mb-2">Erreur</h3>
                 <p className={`text-sm ${d?'text-gray-400':'text-gray-500'}`}>{error}</p>
               </div>
             )}
-            {!loading && !error && data && (
+            {!loading&&!error&&data&&(
               <div className="animate-in fade-in duration-500">
-                {tab==='overview'  && <OverviewTab  data={data} dark={d} />}
-                {tab==='campaigns' && <CampaignsTab data={data} dark={d} />}
-                {tab==='creative'  && <CreativeTab  data={data} dark={d} />}
-                {tab==='funnel'    && <FunnelTab    data={data} dark={d} />}
-                {tab==='alerts'    && <AlertsTab    data={data} dark={d} />}
-                {tab==='history'   && <HistoryTab   data={data} dark={d} />}
+                {tab==='overview'  &&<OverviewTab  data={data} dark={d}/>}
+                {tab==='campaigns' &&<CampaignsTab data={data} dark={d}/>}
+                {tab==='creative'  &&<CreativeTab  data={data} dark={d}/>}
+                {tab==='funnel'    &&<FunnelTab    data={data} dark={d}/>}
+                {tab==='alerts'    &&<AlertsTab    data={data} dark={d}/>}
+                {tab==='history'   &&<HistoryTab   data={data} dark={d}/>}
               </div>
             )}
           </>
