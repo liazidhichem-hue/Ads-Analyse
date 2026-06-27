@@ -465,7 +465,7 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
 const STORES = [
   { id: 'zaya',   name: 'Zaya Shop',       accountId: '884019833957409', disabled: false },
   { id: 'meli',   name: 'Meli Fashion',    accountId: '746014064682147', disabled: false },
-  { id: 'divine', name: 'Divine Boutique', accountId: '',               disabled: true  },
+  { id: 'divine', name: 'Divine Boutique', accountId: '884019833957409', disabled: false },
 ]
 const TABS = [
   { id: 'overview'  as Tab, label: '📊 Vue Générale' },
