@@ -50,97 +50,89 @@ async function gfetch(url: string): Promise<any> {
   catch { throw new Error(`Meta API error: ${txt.slice(0, 200)}`); }
 }
 
+async function fetchFromAccount(accId: string, preset: string, tk: string) {
+  const base = `${GRAPH}/act_${accId}`;
+  const [campIns, campList, adIns, adList, dailyRaw] = await Promise.all([
+    gfetch(`${base}/insights?level=campaign&fields=campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=50`),
+    gfetch(`${base}/campaigns?fields=id,status,daily_budget&${tk}&limit=50`),
+    gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=100`),
+    gfetch(`${base}/ads?fields=id,status,adcreatives{thumbnail_url}&${tk}&limit=100`),
+    gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&date_preset=${preset}&time_increment=1&${tk}`),
+  ]);
+
+  const cMeta: Record<string, any> = {};
+  for (const c of (campList.data || []))
+    cMeta[c.id] = { status: c.status, daily_budget: c.daily_budget ? parseFloat(c.daily_budget) / 100 : 0 };
+
+  const aMeta: Record<string, any> = {};
+  for (const a of (adList.data || []))
+    aMeta[a.id] = { status: a.status, thumbnail: a.adcreatives?.data?.[0]?.thumbnail_url || null };
+
+  const campaigns = (campIns.data || []).map((row: any) => {
+    const p = parseIns(row);
+    const m = cMeta[row.campaign_id] || {};
+    return { id: row.campaign_id, name: row.campaign_name || row.campaign_id, status: m.status || 'UNKNOWN', daily_budget: m.daily_budget || 0, ...p };
+  });
+
+  const ads = (adIns.data || []).map((row: any) => {
+    const p = parseIns(row);
+    const m = aMeta[row.ad_id] || {};
+    return { id: row.ad_id, name: row.ad_name || row.ad_id, status: m.status || 'ACTIVE', thumbnail: m.thumbnail || null, ...p };
+  });
+
+  const daily = (dailyRaw.data || []).map((d: any) => {
+    const spend     = parseFloat(d.spend || '0');
+    const purchases = act(d.actions || [], 'purchase');
+    const revenue   = val(d.action_values || [], 'purchase');
+    const impressions = parseInt(d.impressions || '0');
+    const cpr  = purchases > 0 ? spend / purchases : 0;
+    const roas = spend     > 0 ? revenue / spend   : 0;
+    return { date: (d.date_start || '').slice(5), spend: +spend.toFixed(2), purchases, impressions, cpr: +cpr.toFixed(2), roas: +roas.toFixed(2) };
+  });
+
+  return { campaigns, ads, daily };
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const token     = req.query.access_token  || process.env.META_ACCESS_TOKEN  || '';
-  const rawId     = req.query.ad_account_id || process.env.META_AD_ACCOUNT_ID || '';
-  const accountId = rawId.replace(/^act_/, '');
-  const preset    = req.query.date_preset   || 'last_7d';
+  const token  = req.query.access_token || process.env.META_ACCESS_TOKEN || '';
+  const bmId   = req.query.bm_id        || process.env.META_BM_ID        || '';
+  const preset = req.query.date_preset  || 'last_7d';
 
-  if (!token)     return res.status(400).json({ error: 'Token manquant.' });
-  if (!accountId) return res.status(400).json({ error: 'Ad Account ID manquant.' });
+  if (!token) return res.status(400).json({ error: 'Token manquant.' });
+  if (!bmId)  return res.status(400).json({ error: 'BM ID manquant.' });
 
-  const base = `${GRAPH}/act_${accountId}`;
-  const tk   = `access_token=${token}`;
+  const tk = `access_token=${token}`;
 
   try {
-    const [campIns, campList, adIns, adList, dailyRaw] = await Promise.all([
-      gfetch(`${base}/insights?level=campaign&fields=campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=50`),
-      gfetch(`${base}/campaigns?fields=id,status,daily_budget&${tk}&limit=50`),
-      gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=100`),
-      // ← campaign_id + page_id via object_story_spec
-      gfetch(`${base}/ads?fields=id,status,campaign_id,adcreatives{thumbnail_url,object_story_spec}&${tk}&limit=100`),
-      gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&date_preset=${preset}&time_increment=1&${tk}`),
-    ]);
+    // ── 1. جيب كل الحسابات من الـ BM ──
+    const accountsRaw = await gfetch(
+      `${GRAPH}/${bmId}/owned_ad_accounts?fields=id,name&${tk}&limit=50`
+    );
+    if (accountsRaw.error) throw new Error(accountsRaw.error.message);
 
-    if (campList.error) throw new Error(campList.error.message);
-    if (campIns.error)  throw new Error(campIns.error.message);
+    const accountIds = (accountsRaw.data || []).map((a: any) =>
+      a.id.replace('act_', '')
+    );
 
-    // Campaign meta
-    const cMeta: Record<string, any> = {};
-    for (const c of (campList.data || []))
-      cMeta[c.id] = { status: c.status, daily_budget: c.daily_budget ? parseFloat(c.daily_budget) / 100 : 0 };
+    if (accountIds.length === 0) throw new Error('Aucun compte publicitaire dans ce BM.');
 
-    // Ad meta + page_id extraction + campaign → page_id map
-    const aMeta: Record<string, any> = {};
-    const campaignPageMap: Record<string, string> = {};
+    // ── 2. جيب البيانات من كل الحسابات بالتوازي ──
+    const allResults = await Promise.all(
+      accountIds.map((accId: string) => fetchFromAccount(accId, preset, tk))
+    );
 
-    for (const a of (adList.data || [])) {
-      const creative  = a.adcreatives?.data?.[0];
-      const thumbnail = creative?.thumbnail_url || null;
-      const page_id   = creative?.object_story_spec?.page_id || null;
-      aMeta[a.id] = { status: a.status, thumbnail, page_id };
-      // Map campaign_id → page_id
-      if (a.campaign_id && page_id && !campaignPageMap[a.campaign_id]) {
-        campaignPageMap[a.campaign_id] = page_id;
-      }
-    }
+    // ── 3. ادمج كل النتائج ──
+    const campaigns = allResults.flatMap(r => r.campaigns);
+    const ads       = allResults.flatMap(r => r.ads);
+    const daily     = allResults.flatMap(r => r.daily);
 
-    // Campaigns avec page_id
-    const campaigns = (campIns.data || []).map((row: any) => {
-      const p = parseIns(row);
-      const m = cMeta[row.campaign_id] || {};
-      return {
-        id:           row.campaign_id,
-        name:         row.campaign_name || row.campaign_id,
-        status:       m.status       || 'UNKNOWN',
-        daily_budget: m.daily_budget || 0,
-        page_id:      campaignPageMap[row.campaign_id] || null,
-        ...p,
-      };
-    });
-
-    // Ads avec page_id
-    const ads = (adIns.data || []).map((row: any) => {
-      const p = parseIns(row);
-      const m = aMeta[row.ad_id] || {};
-      return {
-        id:        row.ad_id,
-        name:      row.ad_name  || row.ad_id,
-        status:    m.status     || 'ACTIVE',
-        thumbnail: m.thumbnail  || null,
-        page_id:   m.page_id    || null,
-        ...p,
-      };
-    });
-
-    // Daily
-    const daily = (dailyRaw.data || []).map((d: any) => {
-      const spend     = parseFloat(d.spend || '0');
-      const purchases = act(d.actions       || [], 'purchase');
-      const revenue   = val(d.action_values || [], 'purchase');
-      const impressions = parseInt(d.impressions || '0');
-      const cpr  = purchases > 0 ? spend / purchases : 0;
-      const roas = spend     > 0 ? revenue / spend   : 0;
-      return { date: (d.date_start || '').slice(5), spend: +spend.toFixed(2), purchases, impressions, cpr: +cpr.toFixed(2), roas: +roas.toFixed(2) };
-    });
-
-    // Totals
-    const zero = { spend:0,purchases:0,revenue:0,impressions:0,reach:0,atc:0,lpv:0,clicks_link:0,thruplay:0,budget_total:0,videoViews:0 };
+    // ── 4. احسب الإجماليات ──
+    const zero = { spend:0, purchases:0, revenue:0, impressions:0, reach:0, atc:0, lpv:0, clicks_link:0, thruplay:0, budget_total:0, videoViews:0 };
     const sum  = campaigns.reduce((acc: any, c: any) => ({
       spend:        acc.spend        + c.spend,
       purchases:    acc.purchases    + c.purchases,
@@ -161,7 +153,7 @@ export default async function handler(req: any, res: any) {
       roas:       sum.spend       > 0 ? sum.revenue / sum.spend     : 0,
       cpm:        sum.impressions > 0 ? (sum.spend / sum.impressions) * 1000 : 0,
       ctr_link:   sum.impressions > 0 ? (sum.clicks_link / sum.impressions) * 100 : 0,
-      frequency:  campaigns.length > 0 ? campaigns.reduce((a: any,c: any) => a + c.frequency, 0) / campaigns.length : 0,
+      frequency:  campaigns.length > 0 ? campaigns.reduce((a: any, c: any) => a + c.frequency, 0) / campaigns.length : 0,
       hookRate:   sum.impressions > 0 ? (sum.videoViews / sum.impressions) * 100 : 0,
       costPerATC: sum.atc > 0 ? sum.spend / sum.atc : 0,
       costPerLPV: sum.lpv > 0 ? sum.spend / sum.lpv : 0,
