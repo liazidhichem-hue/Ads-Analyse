@@ -71,7 +71,7 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
   const hr        = a.hookRate || 0
   const hookColor = hr > 25 ? '#10b981' : hr > 15 ? '#f59e0b' : '#ef4444'
   const roasColor = (a.roas||0) > 10 ? '#10b981' : (a.roas||0) > 5 ? '#f59e0b' : '#ef4444'
-  const cprColor  = (a.cpr||0)  < 1.5 ? '#10b981' : (a.cpr||0)  < 3  ? '#f59e0b' : '#ef4444'
+  const cprColor  = (a.cpr||0) < 1.5 ? '#10b981' : (a.cpr||0) < 3 ? '#f59e0b' : '#ef4444'
   const N = 18
   const roasCurve = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i,v:+((a.roas||0)*1.4*t/(t+0.3)).toFixed(2)} })
   const cprCurve  = Array.from({length:N},(_,i)=>{ const t=(i+1)/N; return {i,v:+((a.cpr||0)*(0.5+Math.exp(-t*2.5)*1.5)).toFixed(2)} })
@@ -100,14 +100,13 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
           <p className="text-xl font-bold" style={{color:hookColor}}>{hr.toFixed(1)}%</p>
         </div>
       </div>
-      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>ROAS</span><span className="text-[11px] font-bold" style={{color:roasColor}}>{(a.roas||0).toFixed(1)}x</span></div>{mini(roasCurve,roasColor)}</div>
-      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>CPR</span><span className="text-[11px] font-bold" style={{color:cprColor}}>${(a.cpr||0).toFixed(2)}</span></div>{mini(cprCurve,cprColor)}</div>
-      <div><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase tracking-wider ${dark?'text-slate-400':'text-slate-500'}`}>ThruPlay</span><span className={`text-[11px] font-bold ${dark?'text-blue-400':'text-blue-500'}`}>{fmtN(a.thruplay||0)}</span></div>{mini(thruCurve,'#60a5fa')}</div>
+      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase ${dark?'text-slate-400':'text-slate-500'}`}>ROAS</span><span className="text-[11px] font-bold" style={{color:roasColor}}>{(a.roas||0).toFixed(1)}x</span></div>{mini(roasCurve,roasColor)}</div>
+      <div className="mb-3"><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase ${dark?'text-slate-400':'text-slate-500'}`}>CPR</span><span className="text-[11px] font-bold" style={{color:cprColor}}>${(a.cpr||0).toFixed(2)}</span></div>{mini(cprCurve,cprColor)}</div>
+      <div><div className="flex justify-between mb-0.5"><span className={`text-[10px] font-bold uppercase ${dark?'text-slate-400':'text-slate-500'}`}>ThruPlay</span><span className={`text-[11px] font-bold ${dark?'text-blue-400':'text-blue-500'}`}>{fmtN(a.thruplay||0)}</span></div>{mini(thruCurve,'#60a5fa')}</div>
     </div>
   )
 }
 
-// ══ OVERVIEW TAB ══════════════════════════════════════════════════════════════
 function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals; const daily=data.daily||[]
   const kpis: KPICardProps[] = [
@@ -139,7 +138,6 @@ function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-// ══ CAMPAIGNS TAB ═════════════════════════════════════════════════════════════
 function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const headers=['Nom','Statut','Budget/j','Dépensé','Impressions','Couverture','Fréquence','CPM','CPC lien','CTR lien%','CTR tous%','Vues page','Coût/LPV','ATC','Coût/ATC','Abandon','Achats','Taux Conv.%','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
   return (
@@ -182,11 +180,18 @@ function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-// ══ PUBLICITES TAB (tableau des publicites) ═════════════════════════════════
 function PublicitesTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const sortedAds = [...(data.ads || [])].sort((a, b) => b.roas - a.roas)
-  const headers = ['Publicité','Campagne','Statut','Dépensé','Impressions','Couverture','Fréquence','CPM','CTR lien%','ATC','Coût/ATC','Achats','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
-  if (sortedAds.length === 0) return (
+  const sortedAds = [...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
+  const headers = [
+    'Publicité','Campagne','Statut',
+    'Dépensé','Impressions','Couverture','Fréquence','CPM',
+    'CPC lien','CTR lien%','CTR tous%',
+    'Vues page','Coût/LPV',
+    'ATC','Coût/ATC','Abandon','Taux Conv%',
+    'Achats','CPR','ROAS','Valeur ($)',
+    'ThruPlay','Hook Rate%'
+  ]
+  if(sortedAds.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
       <div className="text-4xl mb-4">📰</div>
       <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucune publicité</h3>
@@ -199,39 +204,72 @@ function PublicitesTab({ data, dark }: { data: MetaData; dark: boolean }) {
           {headers.map(h=><th key={h} className={`px-4 py-3 text-left text-xs font-medium whitespace-nowrap ${dark?'text-gray-400':'text-gray-500'}`}>{h}</th>)}
         </tr></thead>
         <tbody className={`divide-y ${dark?'divide-gray-700/50':'divide-gray-100'}`}>
-          {sortedAds.map((a:Ad)=>(
-            <tr key={a.id} className={`transition-colors ${dark?'hover:bg-gray-700/40':'hover:bg-gray-50'}`}>
-              <td className={`px-4 py-3.5 font-semibold ${dark?'text-white':'text-gray-900'}`}>
-                <div className="flex items-center gap-2">
-                  {a.thumbnail&&<img src={a.thumbnail} alt="" className="w-8 h-8 rounded object-cover shrink-0" onError={e=>{e.currentTarget.style.display='none'}}/>}
-                  <span className="block max-w-[180px] truncate">{a.name}</span>
-                </div>
-              </td>
-              <td className={`px-4 py-3.5 text-xs ${dark?'text-gray-400':'text-gray-500'}`}><span className="block max-w-[120px] truncate">{a.campaign_name}</span></td>
-              <td className="px-4 py-3.5"><StatusBadge status={a.status}/></td>
-              <td className={`px-4 py-3.5 text-sm font-semibold ${dark?'text-white':'text-gray-900'}`}>${fmt(a.spend)}</td>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.impressions)}</td>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.reach)}</td>
-              <MetricCell metric="frequency" value={a.frequency} display={fmt(a.frequency,1)}/>
-              <MetricCell metric="cpm"       value={a.cpm}       display={`$${fmt(a.cpm)}`}/>
-              <MetricCell metric="ctr_link"  value={a.ctr_link}  display={`${fmt(a.ctr_link)}%`}/>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.atc)}</td>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.costPerATC)}</td>
-              <td className={`px-4 py-3.5 text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{a.purchases}</td>
-              <MetricCell metric="cpr"      value={a.cpr}      display={`$${fmt(a.cpr)}`}/>
-              <MetricCell metric="roas"     value={a.roas}     display={`${fmt(a.roas)}x`}/>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.revenue)}</td>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.thruplay)}</td>
-              <MetricCell metric="hookRate" value={a.hookRate} display={`${fmt(a.hookRate)}%`}/>
-            </tr>
-          ))}
+          {sortedAds.map((a:Ad)=>{
+            const abandon    = a.atc - a.purchases
+            const tauxConv   = fmt((a.purchases/Math.max(a.lpv,1))*100)
+            const coutLPV    = fmt(a.spend/Math.max(a.lpv,1))
+            return (
+              <tr key={a.id} className={`transition-colors ${dark?'hover:bg-gray-700/40':'hover:bg-gray-50'}`}>
+                {/* Publicité */}
+                <td className={`px-4 py-3.5 font-semibold ${dark?'text-white':'text-gray-900'}`}>
+                  <div className="flex items-center gap-2">
+                    {a.thumbnail&&<img src={a.thumbnail} alt="" className="w-8 h-8 rounded object-cover shrink-0" onError={e=>{e.currentTarget.style.display='none'}}/>}
+                    <span className="block max-w-[180px] truncate">{a.name}</span>
+                  </div>
+                </td>
+                {/* Campagne */}
+                <td className={`px-4 py-3.5 text-xs ${dark?'text-gray-400':'text-gray-500'}`}><span className="block max-w-[120px] truncate">{a.campaign_name}</span></td>
+                {/* Statut */}
+                <td className="px-4 py-3.5"><StatusBadge status={a.status}/></td>
+                {/* Dépensé */}
+                <td className={`px-4 py-3.5 text-sm font-semibold ${dark?'text-white':'text-gray-900'}`}>${fmt(a.spend)}</td>
+                {/* Impressions */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.impressions)}</td>
+                {/* Couverture */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.reach)}</td>
+                {/* Fréquence */}
+                <MetricCell metric="frequency" value={a.frequency} display={fmt(a.frequency,1)}/>
+                {/* CPM */}
+                <MetricCell metric="cpm" value={a.cpm} display={`$${fmt(a.cpm)}`}/>
+                {/* CPC lien */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.cpc_link)}</td>
+                {/* CTR lien% */}
+                <MetricCell metric="ctr_link" value={a.ctr_link} display={`${fmt(a.ctr_link)}%`}/>
+                {/* CTR tous% */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt(a.ctr_all)}%</td>
+                {/* Vues page */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.lpv)}</td>
+                {/* Coût/LPV */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${coutLPV}</td>
+                {/* ATC */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.atc)}</td>
+                {/* Coût/ATC */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.costPerATC)}</td>
+                {/* Abandon */}
+                <td className={`px-4 py-3.5 text-sm font-bold ${abandon>0?(dark?'text-red-400':'text-red-500'):(dark?'text-gray-300':'text-gray-600')}`}>{abandon}</td>
+                {/* Taux Conv% */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{tauxConv}%</td>
+                {/* Achats */}
+                <td className={`px-4 py-3.5 text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{a.purchases}</td>
+                {/* CPR */}
+                <MetricCell metric="cpr" value={a.cpr} display={`$${fmt(a.cpr)}`}/>
+                {/* ROAS */}
+                <MetricCell metric="roas" value={a.roas} display={`${fmt(a.roas)}x`}/>
+                {/* Valeur */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.revenue)}</td>
+                {/* ThruPlay */}
+                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.thruplay)}</td>
+                {/* Hook Rate% */}
+                <MetricCell metric="hookRate" value={a.hookRate} display={`${fmt(a.hookRate)}%`}/>
+              </tr>
+            )
+          })}
         </tbody>
       </table></div>
     </div>
   )
 }
 
-// ══ CREATIVE TAB ═════════════════════════════════════════════════════════════
 function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const sortedAds=[...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
   if(sortedAds.length===0) return (
@@ -273,7 +311,6 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-// ══ FUNNEL TAB ═════════════════════════════════════════════════════════════
 function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals
   const steps=[
@@ -318,7 +355,6 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-// ══ ALERTS TAB ═════════════════════════════════════════════════════════════
 function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals; const alerts:any[]=[]
   if(t.cpr>3)       alerts.push({title:'CPR Critique',      desc:`CPR à $${fmt(t.cpr)}`,        type:'red',   icon:'🚨'})
@@ -344,7 +380,6 @@ function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-// ══ HISTORY TAB ═════════════════════════════════════════════════════════════
 function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const daily=data.daily||[]; const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
   const charts=[
@@ -374,7 +409,6 @@ function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
-// ══ SETTINGS TAB ═════════════════════════════════════════════════════════════
 function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAdAccountId }: {
   dark: boolean
   metaToken: string;       setMetaToken:       (v: string) => void
@@ -411,7 +445,6 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
   )
 }
 
-// ══ CONSTANTS ══════════════════════════════════════════════════════════════
 const TABS = [
   {id:'overview'   as Tab, label:'📊 Vue Générale'},
   {id:'campaigns'  as Tab, label:'🎯 Campagnes'   },
@@ -429,7 +462,6 @@ const DATES = [
   {value:'this_month' as DatePreset, label:'Ce mois'          },
 ]
 
-// ══ MAIN ══════════════════════════════════════════════════════════════════════
 export default function Index() {
   const [dark,    setDark]    = useState(()=>localStorage.getItem('theme')!=='light')
   const [tab,     setTab]     = useState<Tab>('overview')
