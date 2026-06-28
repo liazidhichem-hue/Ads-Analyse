@@ -59,7 +59,8 @@ async function fetchFromAccount(accId: string, preset: string, tk: string) {
   const [campIns, campList, adIns, adList, dailyRaw] = await Promise.all([
     gfetch(`${base}/insights?level=campaign&fields=campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=50`),
     gfetch(`${base}/campaigns?fields=id,status,daily_budget&${tk}&limit=50`),
-    gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=100`),
+    // ← campaign_id + campaign_name dans les insights des ads
+    gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=100`),
     gfetch(`${base}/ads?fields=id,status,adcreatives{thumbnail_url}&${tk}&limit=100`),
     gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&date_preset=${preset}&time_increment=1&${tk}`),
   ]);
@@ -83,7 +84,15 @@ async function fetchFromAccount(accId: string, preset: string, tk: string) {
   const ads = (adIns.data || []).map((row: any) => {
     const p = parseIns(row);
     const m = aMeta[row.ad_id] || {};
-    return { id: row.ad_id, name: row.ad_name || row.ad_id, status: m.status || 'ACTIVE', thumbnail: m.thumbnail || null, ...p };
+    return {
+      id:            row.ad_id,
+      name:          row.ad_name      || row.ad_id,
+      campaign_id:   row.campaign_id  || '',
+      campaign_name: row.campaign_name || '',
+      status:        m.status    || 'ACTIVE',
+      thumbnail:     m.thumbnail || null,
+      ...p,
+    };
   });
 
   const daily = (dailyRaw.data || []).map((d: any) => {
@@ -138,7 +147,7 @@ export default async function handler(req: any, res: any) {
   const accountId = rawId.replace(/^act_/, '');
   const preset    = req.query.date_preset   || 'last_7d';
 
-  if (!token) return res.status(400).json({ error: 'Token manquant — configurez dans Paramètres.' });
+  if (!token) return res.status(400).json({ error: 'Token manquant.' });
 
   const tk = `access_token=${token}`;
 
@@ -148,17 +157,15 @@ export default async function handler(req: any, res: any) {
     let daily:     any[] = [];
 
     if (accountId) {
-      // ── Ad Account ID fourni — fetch ce compte uniquement
       const result = await fetchFromAccount(accountId, preset, tk);
       campaigns = result.campaigns;
       ads       = result.ads;
       daily     = result.daily;
     } else {
-      // ── Pas d'ID — fetch tous les comptes du token
       const accountsRaw = await gfetch(`${GRAPH}/me/adaccounts?fields=id,name&${tk}&limit=50`);
       if (accountsRaw.error) throw new Error(accountsRaw.error.message);
       const accountIds: string[] = (accountsRaw.data || []).map((a: any) => a.id.replace('act_', ''));
-      if (accountIds.length === 0) throw new Error('Aucun compte publicitaire trouvé.');
+      if (accountIds.length === 0) throw new Error('Aucun compte trouvé.');
       const allResults = await Promise.all(
         accountIds.map(async (id) => {
           try { return await fetchFromAccount(id, preset, tk); }
