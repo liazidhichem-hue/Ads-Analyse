@@ -90,8 +90,8 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
       <div className="flex items-center gap-3 mb-4">
         <svg width="72" height="72" viewBox="0 0 100 100" className="shrink-0">
           <circle cx="50" cy="50" r={r} fill="none" stroke={track} strokeWidth="8"/>
-          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="8" strokeLinecap="round"
-            strokeDasharray={`${hookDash} ${circ}`} transform="rotate(-90 50 50)"/>
+          <circle cx="50" cy="50" r={r} fill="none" stroke={hookColor} strokeWidth="8"
+            strokeLinecap="round" strokeDasharray={`${hookDash} ${circ}`} transform="rotate(-90 50 50)"/>
           <text x="50" y="46" textAnchor="middle" fill={hookColor} fontSize="13" fontWeight="800">{hr.toFixed(1)}%</text>
           <text x="50" y="60" textAnchor="middle" fill={dark?'#64748b':'#94a3b8'} fontSize="7.5" fontWeight="600">HOOK RATE</text>
         </svg>
@@ -107,6 +107,7 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
   )
 }
 
+// ══ OVERVIEW TAB ══════════════════════════════════════════════════════════════
 function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals; const daily=data.daily||[]
   const kpis: KPICardProps[] = [
@@ -138,6 +139,7 @@ function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
+// ══ CAMPAIGNS TAB ═════════════════════════════════════════════════════════════
 function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const headers=['Nom','Statut','Budget/j','Dépensé','Impressions','Couverture','Fréquence','CPM','CPC lien','CTR lien%','CTR tous%','Vues page','Coût/LPV','ATC','Coût/ATC','Abandon','Achats','Taux Conv.%','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
   return (
@@ -180,6 +182,56 @@ function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
+// ══ PUBLICITES TAB (tableau des publicites) ═════════════════════════════════
+function PublicitesTab({ data, dark }: { data: MetaData; dark: boolean }) {
+  const sortedAds = [...(data.ads || [])].sort((a, b) => b.roas - a.roas)
+  const headers = ['Publicité','Campagne','Statut','Dépensé','Impressions','Couverture','Fréquence','CPM','CTR lien%','ATC','Coût/ATC','Achats','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
+  if (sortedAds.length === 0) return (
+    <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <div className="text-4xl mb-4">📰</div>
+      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucune publicité</h3>
+    </div>
+  )
+  return (
+    <div className={`rounded-xl overflow-hidden border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <div className="overflow-x-auto"><table className="w-full text-sm">
+        <thead><tr className={`border-b ${dark?'border-gray-800 bg-[#0f172a]':'border-gray-100 bg-gray-50/50'}`}>
+          {headers.map(h=><th key={h} className={`px-4 py-3 text-left text-xs font-medium whitespace-nowrap ${dark?'text-gray-400':'text-gray-500'}`}>{h}</th>)}
+        </tr></thead>
+        <tbody className={`divide-y ${dark?'divide-gray-700/50':'divide-gray-100'}`}>
+          {sortedAds.map((a:Ad)=>(
+            <tr key={a.id} className={`transition-colors ${dark?'hover:bg-gray-700/40':'hover:bg-gray-50'}`}>
+              <td className={`px-4 py-3.5 font-semibold ${dark?'text-white':'text-gray-900'}`}>
+                <div className="flex items-center gap-2">
+                  {a.thumbnail&&<img src={a.thumbnail} alt="" className="w-8 h-8 rounded object-cover shrink-0" onError={e=>{e.currentTarget.style.display='none'}}/>}
+                  <span className="block max-w-[180px] truncate">{a.name}</span>
+                </div>
+              </td>
+              <td className={`px-4 py-3.5 text-xs ${dark?'text-gray-400':'text-gray-500'}`}><span className="block max-w-[120px] truncate">{a.campaign_name}</span></td>
+              <td className="px-4 py-3.5"><StatusBadge status={a.status}/></td>
+              <td className={`px-4 py-3.5 text-sm font-semibold ${dark?'text-white':'text-gray-900'}`}>${fmt(a.spend)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.impressions)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.reach)}</td>
+              <MetricCell metric="frequency" value={a.frequency} display={fmt(a.frequency,1)}/>
+              <MetricCell metric="cpm"       value={a.cpm}       display={`$${fmt(a.cpm)}`}/>
+              <MetricCell metric="ctr_link"  value={a.ctr_link}  display={`${fmt(a.ctr_link)}%`}/>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.atc)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.costPerATC)}</td>
+              <td className={`px-4 py-3.5 text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{a.purchases}</td>
+              <MetricCell metric="cpr"      value={a.cpr}      display={`$${fmt(a.cpr)}`}/>
+              <MetricCell metric="roas"     value={a.roas}     display={`${fmt(a.roas)}x`}/>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.revenue)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.thruplay)}</td>
+              <MetricCell metric="hookRate" value={a.hookRate} display={`${fmt(a.hookRate)}%`}/>
+            </tr>
+          ))}
+        </tbody>
+      </table></div>
+    </div>
+  )
+}
+
+// ══ CREATIVE TAB ═════════════════════════════════════════════════════════════
 function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const sortedAds=[...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
   if(sortedAds.length===0) return (
@@ -195,20 +247,17 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
           <div className="relative w-full h-44 overflow-hidden">
             {a.thumbnail?<img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover"
               onError={e=>{e.currentTarget.style.display='none';(e.currentTarget.nextSibling as HTMLElement)?.classList?.remove('hidden')}}/>:null}
-            <div className={`${a.thumbnail?'hidden':''} absolute inset-0 flex items-center justify-center ${dark?'bg-[#0f172a]':'bg-gray-100'}`}>
-              <span className="text-5xl opacity-30">🎬</span>
-            </div>
+            <div className={`${a.thumbnail?'hidden':''} absolute inset-0 flex items-center justify-center ${dark?'bg-[#0f172a]':'bg-gray-100'}`}><span className="text-5xl opacity-30">🎬</span></div>
             <div className="absolute top-2 left-2 flex gap-1.5">
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-black/70 text-white">▶ Video</span>
               {a.status==='ACTIVE'&&<span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-500/90 text-white">Live</span>}
             </div>
             {a.roas>10&&<div className="absolute top-2 right-2"><span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-yellow-400/90 text-gray-900">⭐ Top</span></div>}
           </div>
-          <div className={`border-t border-b ${dark?'border-gray-800':'border-gray-100'}`}>
-            <AdPerformanceChart a={a} dark={dark}/>
-          </div>
+          <div className={`border-t border-b ${dark?'border-gray-800':'border-gray-100'}`}><AdPerformanceChart a={a} dark={dark}/></div>
           <div className="px-4 pb-4 flex-1 flex flex-col">
             <h4 className={`font-bold text-sm my-3 line-clamp-2 ${dark?'text-white':'text-gray-900'}`}>{a.name}</h4>
+            <p className={`text-[10px] mb-3 truncate ${dark?'text-gray-500':'text-gray-400'}`}>{a.campaign_name}</p>
             <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-auto text-sm">
               {[['Spend',`$${fmt(a.spend)}`],['Impressions',fmtN(a.impressions)],['ATC',fmtN(a.atc)],['Coût/ATC',`$${fmt(a.spend/Math.max(a.atc,1))}`],['Achats',fmtN(a.purchases)],['CTR',`${fmt(a.ctr_link)}%`]].map(([l,v])=>(
                 <div key={l} className="flex flex-col">
@@ -224,6 +273,7 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
+// ══ FUNNEL TAB ═════════════════════════════════════════════════════════════
 function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals
   const steps=[
@@ -246,9 +296,7 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
           {steps.map((s,i)=>{
             const prev=i>0?steps[i-1].value:null; const conv=prev?((s.value/Math.max(prev,1))*100):null
             return (<div key={i} className="w-full flex h-16 sm:h-20 relative">
-              <div className="w-[35%] flex items-center justify-end pr-4">
-                <span className={`text-xs sm:text-base font-medium text-right ${dark?'text-gray-200':'text-gray-900'}`}>{s.label}</span>
-              </div>
+              <div className="w-[35%] flex items-center justify-end pr-4"><span className={`text-xs sm:text-base font-medium text-right ${dark?'text-gray-200':'text-gray-900'}`}>{s.label}</span></div>
               <div className="w-[30%] relative flex items-center justify-center">
                 <div className={`absolute inset-0 ${s.bg}`} style={{clipPath:`polygon(${(100-s.wTop)/2}% 0,${100-(100-s.wTop)/2}% 0,${100-(100-s.wBottom)/2}% 100%,${(100-s.wBottom)/2}% 100%)`}}/>
                 <span className="relative z-10 text-gray-900 font-bold text-lg drop-shadow-sm">{fmtN(s.value)}</span>
@@ -270,6 +318,7 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
+// ══ ALERTS TAB ═════════════════════════════════════════════════════════════
 function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals; const alerts:any[]=[]
   if(t.cpr>3)       alerts.push({title:'CPR Critique',      desc:`CPR à $${fmt(t.cpr)}`,        type:'red',   icon:'🚨'})
@@ -280,8 +329,7 @@ function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   if(t.roas>10)     alerts.push({title:'ROAS Exceptionnel',  desc:`${fmt(t.roas)}x !`,            type:'green', icon:'🏆'})
   if(alerts.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">✅</div>
-      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
+      <div className="text-4xl mb-4">✅</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
     </div>
   )
   return (
@@ -289,17 +337,16 @@ function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
       {alerts.map((a,i)=>{ const c=CLS[a.type as keyof typeof CLS]; return (
         <div key={i} className={`rounded-xl p-6 border ${c.border} ${c.bg} shadow-sm flex items-start gap-4`}>
           <div className="text-3xl">{a.icon}</div>
-          <div><h4 className={`text-lg font-bold ${c.text}`}>{a.title}</h4>
-          <p className={`mt-1 text-sm ${dark?'text-gray-300':'text-gray-700'}`}>{a.desc}</p></div>
+          <div><h4 className={`text-lg font-bold ${c.text}`}>{a.title}</h4><p className={`mt-1 text-sm ${dark?'text-gray-300':'text-gray-700'}`}>{a.desc}</p></div>
         </div>
       )})}
     </div>
   )
 }
 
+// ══ HISTORY TAB ═════════════════════════════════════════════════════════════
 function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const daily=data.daily||[]
-  const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
+  const daily=data.daily||[]; const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
   const charts=[
     {title:'ROAS',    dataKey:'roas',     color:'#10b981',prefix:'', suffix:'x'},
     {title:'CPR',     dataKey:'cpr',      color:'#ef4444',prefix:'$',suffix:'' },
@@ -327,6 +374,7 @@ function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
   )
 }
 
+// ══ SETTINGS TAB ═════════════════════════════════════════════════════════════
 function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAdAccountId }: {
   dark: boolean
   metaToken: string;       setMetaToken:       (v: string) => void
@@ -336,8 +384,8 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
   const [tempId,    setTempId]    = useState(metaAdAccountId)
   const [saved,     setSaved]     = useState(false)
   const save = () => {
-    localStorage.setItem('metaToken',        tempToken)
-    localStorage.setItem('metaAdAccountId',  tempId)
+    localStorage.setItem('metaToken',       tempToken)
+    localStorage.setItem('metaAdAccountId', tempId)
     setMetaToken(tempToken); setMetaAdAccountId(tempId)
     setSaved(true); setTimeout(()=>setSaved(false),3000)
   }
@@ -354,7 +402,7 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
           <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Ad Account ID</label>
           <input type="text" value={tempId} onChange={e=>setTempId(e.target.value)} placeholder="Ex: 884019833957409"
             className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
-          <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Laissez vide pour afficher tous les comptes accessibles par le token.</p>
+          <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Laissez vide pour afficher tous les comptes du token.</p>
         </div>
         <button onClick={save} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">Sauvegarder</button>
         {saved&&<div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 text-sm text-center font-semibold">✅ Sauvegardé !</div>}
@@ -363,13 +411,15 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
   )
 }
 
+// ══ CONSTANTS ══════════════════════════════════════════════════════════════
 const TABS = [
-  {id:'overview'  as Tab, label:'📊 Vue Générale'},
-  {id:'campaigns' as Tab, label:'🎯 Campagnes'   },
-  {id:'creative'  as Tab, label:'🎨 Créatifs'    },
-  {id:'funnel'    as Tab, label:'📉 Funnel'      },
-  {id:'alerts'    as Tab, label:'🚨 Alertes'     },
-  {id:'history'   as Tab, label:'📈 Historique'  },
+  {id:'overview'   as Tab, label:'📊 Vue Générale'},
+  {id:'campaigns'  as Tab, label:'🎯 Campagnes'   },
+  {id:'publicites' as Tab, label:'📰 Publicités'  },
+  {id:'creative'   as Tab, label:'🎨 Créatifs'    },
+  {id:'funnel'     as Tab, label:'📉 Funnel'      },
+  {id:'alerts'     as Tab, label:'🚨 Alertes'     },
+  {id:'history'    as Tab, label:'📈 Historique'  },
 ]
 const DATES = [
   {value:'today'      as DatePreset, label:"Aujourd'hui"      },
@@ -379,6 +429,7 @@ const DATES = [
   {value:'this_month' as DatePreset, label:'Ce mois'          },
 ]
 
+// ══ MAIN ══════════════════════════════════════════════════════════════════════
 export default function Index() {
   const [dark,    setDark]    = useState(()=>localStorage.getItem('theme')!=='light')
   const [tab,     setTab]     = useState<Tab>('overview')
@@ -480,12 +531,13 @@ export default function Index() {
             )}
             {!loading&&!error&&data&&(
               <div className="animate-in fade-in duration-500">
-                {tab==='overview'  &&<OverviewTab  data={data} dark={d}/>}
-                {tab==='campaigns' &&<CampaignsTab data={data} dark={d}/>}
-                {tab==='creative'  &&<CreativeTab  data={data} dark={d}/>}
-                {tab==='funnel'    &&<FunnelTab    data={data} dark={d}/>}
-                {tab==='alerts'    &&<AlertsTab    data={data} dark={d}/>}
-                {tab==='history'   &&<HistoryTab   data={data} dark={d}/>}
+                {tab==='overview'   &&<OverviewTab   data={data} dark={d}/>}
+                {tab==='campaigns'  &&<CampaignsTab  data={data} dark={d}/>}
+                {tab==='publicites' &&<PublicitesTab data={data} dark={d}/>}
+                {tab==='creative'   &&<CreativeTab   data={data} dark={d}/>}
+                {tab==='funnel'     &&<FunnelTab     data={data} dark={d}/>}
+                {tab==='alerts'     &&<AlertsTab     data={data} dark={d}/>}
+                {tab==='history'    &&<HistoryTab    data={data} dark={d}/>}
               </div>
             )}
           </>
