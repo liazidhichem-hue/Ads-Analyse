@@ -18,20 +18,21 @@ function val(arr: any[], type: string): number {
 
 function parseIns(d: any) {
   if (!d) d = {};
-  const spend       = parseFloat(d.spend || '0');
-  const impressions = parseInt(d.impressions  || '0');
-  const reach       = parseInt(d.reach        || '0');
-  const frequency   = parseFloat(d.frequency  || '0');
-  const cpm         = parseFloat(d.cpm        || '0');
-  const ctr_all     = parseFloat(d.ctr        || '0');
-  const ctr_link    = parseFloat(d.inline_link_click_ctr || '0');
-  const clicks_link = parseInt(d.inline_link_clicks      || '0');
-  const acts        = d.actions       || [];
-  const vals        = d.action_values || [];
-  const purchases   = act(acts, 'purchase');
-  const atc         = act(acts, 'add_to_cart');
-  const lpv         = act(acts, 'landing_page_view');
-  const videoViews  = act(acts, 'video_view');
+  const spend        = parseFloat(d.spend || '0');
+  const impressions  = parseInt(d.impressions  || '0');
+  const reach        = parseInt(d.reach        || '0');
+  const frequency    = parseFloat(d.frequency  || '0');
+  const cpm          = parseFloat(d.cpm        || '0');
+  const ctr_all      = parseFloat(d.ctr        || '0');
+  const ctr_link     = parseFloat(d.inline_link_click_ctr || '0');
+  const clicks_link  = parseInt(d.inline_link_clicks      || '0');
+  const acts         = d.actions       || [];
+  const vals         = d.action_values || [];
+  const purchases          = act(acts, 'purchase');
+  const atc                = act(acts, 'add_to_cart');
+  const lpv                = act(acts, 'landing_page_view');
+  const videoViews         = act(acts, 'video_view');
+  const initiated_checkout = act(acts, 'initiate_checkout');  // ⭐ FIX
   const revenue     = val(vals, 'purchase');
   const thruplay    = parseInt(d.video_thruplay_watched_actions?.[0]?.value || '0');
   const hookRate    = impressions > 0 ? (videoViews  / impressions) * 100 : 0;
@@ -40,12 +41,18 @@ function parseIns(d: any) {
   const cpc_link    = clicks_link > 0 ? spend / clicks_link : 0;
   const costPerATC  = atc > 0 ? spend / atc : 0;
   const costPerLPV  = lpv > 0 ? spend / lpv : 0;
-  return { spend, impressions, reach, frequency, cpm, ctr_all, ctr_link, clicks_link, cpc_link, purchases, atc, lpv, videoViews, revenue, thruplay, hookRate, cpr, roas, costPerATC, costPerLPV };
+  return {
+    spend, impressions, reach, frequency, cpm,
+    ctr_all, ctr_link, clicks_link, cpc_link,
+    purchases, atc, lpv, videoViews, revenue,
+    initiated_checkout,  // ⭐ FIX
+    thruplay, hookRate, cpr, roas, costPerATC, costPerLPV
+  };
 }
 
 async function gfetch(url: string): Promise<any> {
   try {
-    const r = await fetch(url);
+    const r   = await fetch(url);
     const txt = await r.text();
     try { return JSON.parse(txt); }
     catch { return { error: { message: `Invalid JSON: ${txt.slice(0,100)}` } }; }
@@ -59,7 +66,6 @@ async function fetchFromAccount(accId: string, preset: string, tk: string) {
   const [campIns, campList, adIns, adList, dailyRaw] = await Promise.all([
     gfetch(`${base}/insights?level=campaign&fields=campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=50`),
     gfetch(`${base}/campaigns?fields=id,status,daily_budget&${tk}&limit=50`),
-    // ← campaign_id + campaign_name dans les insights des ads
     gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=100`),
     gfetch(`${base}/ads?fields=id,status,adcreatives{thumbnail_url}&${tk}&limit=100`),
     gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&date_preset=${preset}&time_increment=1&${tk}`),
@@ -86,8 +92,8 @@ async function fetchFromAccount(accId: string, preset: string, tk: string) {
     const m = aMeta[row.ad_id] || {};
     return {
       id:            row.ad_id,
-      name:          row.ad_name      || row.ad_id,
-      campaign_id:   row.campaign_id  || '',
+      name:          row.ad_name       || row.ad_id,
+      campaign_id:   row.campaign_id   || '',
       campaign_name: row.campaign_name || '',
       status:        m.status    || 'ACTIVE',
       thumbnail:     m.thumbnail || null,
@@ -109,19 +115,24 @@ async function fetchFromAccount(accId: string, preset: string, tk: string) {
 }
 
 function buildTotals(campaigns: any[]) {
-  const zero = { spend:0,purchases:0,revenue:0,impressions:0,reach:0,atc:0,lpv:0,clicks_link:0,thruplay:0,budget_total:0,videoViews:0 };
-  const sum  = campaigns.reduce((acc: any, c: any) => ({
-    spend:        acc.spend        + c.spend,
-    purchases:    acc.purchases    + c.purchases,
-    revenue:      acc.revenue      + c.revenue,
-    impressions:  acc.impressions  + c.impressions,
-    reach:        acc.reach        + c.reach,
-    atc:          acc.atc          + c.atc,
-    lpv:          acc.lpv          + c.lpv,
-    clicks_link:  acc.clicks_link  + c.clicks_link,
-    thruplay:     acc.thruplay     + c.thruplay,
-    budget_total: acc.budget_total + (c.daily_budget || 0),
-    videoViews:   acc.videoViews   + c.videoViews,
+  const zero = {
+    spend: 0, purchases: 0, revenue: 0, impressions: 0, reach: 0,
+    atc: 0, lpv: 0, clicks_link: 0, thruplay: 0, budget_total: 0,
+    videoViews: 0, initiated_checkout: 0  // ⭐ FIX
+  };
+  const sum = campaigns.reduce((acc: any, c: any) => ({
+    spend:               acc.spend               + c.spend,
+    purchases:           acc.purchases           + c.purchases,
+    revenue:             acc.revenue             + c.revenue,
+    impressions:         acc.impressions         + c.impressions,
+    reach:               acc.reach               + c.reach,
+    atc:                 acc.atc                 + c.atc,
+    lpv:                 acc.lpv                 + c.lpv,
+    clicks_link:         acc.clicks_link         + c.clicks_link,
+    thruplay:            acc.thruplay            + c.thruplay,
+    budget_total:        acc.budget_total        + (c.daily_budget || 0),
+    videoViews:          acc.videoViews          + c.videoViews,
+    initiated_checkout:  acc.initiated_checkout  + c.initiated_checkout,  // ⭐ FIX
   }), zero);
   return {
     ...sum,
@@ -129,7 +140,7 @@ function buildTotals(campaigns: any[]) {
     roas:       sum.spend       > 0 ? sum.revenue / sum.spend     : 0,
     cpm:        sum.impressions > 0 ? (sum.spend / sum.impressions) * 1000 : 0,
     ctr_link:   sum.impressions > 0 ? (sum.clicks_link / sum.impressions) * 100 : 0,
-    frequency:  campaigns.length > 0 ? campaigns.reduce((a: any,c: any) => a + c.frequency, 0) / campaigns.length : 0,
+    frequency:  campaigns.length > 0 ? campaigns.reduce((a: any, c: any) => a + c.frequency, 0) / campaigns.length : 0,
     hookRate:   sum.impressions > 0 ? (sum.videoViews / sum.impressions) * 100 : 0,
     costPerATC: sum.atc > 0 ? sum.spend / sum.atc : 0,
     costPerLPV: sum.lpv > 0 ? sum.spend / sum.lpv : 0,
@@ -178,9 +189,10 @@ export default async function handler(req: any, res: any) {
     }
 
     const totals = buildTotals(campaigns);
+
     return res.status(200).json({ totals, campaigns, ads, daily });
 
   } catch (e: any) {
-    return res.status(500).json({ error: e.message || 'Erreur serveur.' });
+    return res.status(500).json({ error: e.message || 'Erreur serveur' });
   }
 }
