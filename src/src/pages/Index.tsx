@@ -164,7 +164,7 @@ function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.spend/Math.max(c.lpv,1))}</td>
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.atc)}</td>
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.costPerATC)}</td>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{{c.initiated_checkout}}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{c.initiated_checkout}</td>
               <td className={`px-4 py-3.5 text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{c.purchases}</td>
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt((c.purchases/Math.max(c.lpv,1))*100)}%</td>
               <MetricCell metric="cpr"      value={c.cpr}      display={`$${fmt(c.cpr)}`}/>
