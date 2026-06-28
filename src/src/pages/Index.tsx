@@ -161,10 +161,10 @@ function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
               <MetricCell metric="ctr_link" value={c.ctr_link} display={`${fmt(c.ctr_link)}%`}/>
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt(c.ctr_all)}%</td>
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.lpv)}</td>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.spend/Math.max(c.lpv,1))}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.costPerLPV)}</td>
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.atc)}</td>
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(c.costPerATC)}</td>
-              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{c.atc-c.purchases}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(c.initiated_checkout)}</td>
               <td className={`px-4 py-3.5 text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{c.purchases}</td>
               <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt((c.purchases/Math.max(c.lpv,1))*100)}%</td>
               <MetricCell metric="cpr"      value={c.cpr}      display={`$${fmt(c.cpr)}`}/>
@@ -193,7 +193,7 @@ function PublicitesTab({ data, dark }: { data: MetaData; dark: boolean }) {
   ]
   if(sortedAds.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">📰</div>
+      <div className="text-4xl mb-4">📭</div>
       <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucune publicité</h3>
     </div>
   )
@@ -204,66 +204,39 @@ function PublicitesTab({ data, dark }: { data: MetaData; dark: boolean }) {
           {headers.map(h=><th key={h} className={`px-4 py-3 text-left text-xs font-medium whitespace-nowrap ${dark?'text-gray-400':'text-gray-500'}`}>{h}</th>)}
         </tr></thead>
         <tbody className={`divide-y ${dark?'divide-gray-700/50':'divide-gray-100'}`}>
-          {sortedAds.map((a:Ad)=>{
-            const abandon    = a.atc - a.purchases
-            const tauxConv   = fmt((a.purchases/Math.max(a.lpv,1))*100)
-            const coutLPV    = fmt(a.spend/Math.max(a.lpv,1))
-            return (
-              <tr key={a.id} className={`transition-colors ${dark?'hover:bg-gray-700/40':'hover:bg-gray-50'}`}>
-                {/* Publicité */}
-                <td className={`px-4 py-3.5 font-semibold ${dark?'text-white':'text-gray-900'}`}>
-                  <div className="flex items-center gap-2">
-                    {a.thumbnail&&<img src={a.thumbnail} alt="" className="w-8 h-8 rounded object-cover shrink-0" onError={e=>{e.currentTarget.style.display='none'}}/>}
-                    <span className="block max-w-[180px] truncate">{a.name}</span>
-                  </div>
-                </td>
-                {/* Campagne */}
-                <td className={`px-4 py-3.5 text-xs ${dark?'text-gray-400':'text-gray-500'}`}><span className="block max-w-[120px] truncate">{a.campaign_name}</span></td>
-                {/* Statut */}
-                <td className="px-4 py-3.5"><StatusBadge status={a.status}/></td>
-                {/* Dépensé */}
-                <td className={`px-4 py-3.5 text-sm font-semibold ${dark?'text-white':'text-gray-900'}`}>${fmt(a.spend)}</td>
-                {/* Impressions */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.impressions)}</td>
-                {/* Couverture */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.reach)}</td>
-                {/* Fréquence */}
-                <MetricCell metric="frequency" value={a.frequency} display={fmt(a.frequency,1)}/>
-                {/* CPM */}
-                <MetricCell metric="cpm" value={a.cpm} display={`$${fmt(a.cpm)}`}/>
-                {/* CPC lien */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.cpc_link)}</td>
-                {/* CTR lien% */}
-                <MetricCell metric="ctr_link" value={a.ctr_link} display={`${fmt(a.ctr_link)}%`}/>
-                {/* CTR tous% */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt(a.ctr_all)}%</td>
-                {/* Vues page */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.lpv)}</td>
-                {/* Coût/LPV */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${coutLPV}</td>
-                {/* ATC */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.atc)}</td>
-                {/* Coût/ATC */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.costPerATC)}</td>
-                {/* Abandon */}
-                <td className={`px-4 py-3.5 text-sm font-bold ${abandon>0?(dark?'text-red-400':'text-red-500'):(dark?'text-gray-300':'text-gray-600')}`}>{abandon}</td>
-                {/* Taux Conv% */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{tauxConv}%</td>
-                {/* Achats */}
-                <td className={`px-4 py-3.5 text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{a.purchases}</td>
-                {/* CPR */}
-                <MetricCell metric="cpr" value={a.cpr} display={`$${fmt(a.cpr)}`}/>
-                {/* ROAS */}
-                <MetricCell metric="roas" value={a.roas} display={`${fmt(a.roas)}x`}/>
-                {/* Valeur */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.revenue)}</td>
-                {/* ThruPlay */}
-                <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.thruplay)}</td>
-                {/* Hook Rate% */}
-                <MetricCell metric="hookRate" value={a.hookRate} display={`${fmt(a.hookRate)}%`}/>
-              </tr>
-            )
-          })}
+          {sortedAds.map((a:Ad)=>(
+            <tr key={a.id} className={`transition-colors ${dark?'hover:bg-gray-700/40':'hover:bg-gray-50'}`}>
+              <td className={`px-4 py-3.5 font-semibold ${dark?'text-white':'text-gray-900'}`}>
+                <div className="flex items-center gap-2">
+                  {a.thumbnail&&<img src={a.thumbnail} alt="" className="w-8 h-8 rounded object-cover shrink-0" onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>}
+                  <span className="block max-w-[180px] truncate">{a.name}</span>
+                </div>
+              </td>
+              <td className={`px-4 py-3.5 text-xs ${dark?'text-gray-400':'text-gray-500'}`}><span className="block max-w-[120px] truncate">{a.campaign_name}</span></td>
+              <td className="px-4 py-3.5"><StatusBadge status={a.status}/></td>
+              <td className={`px-4 py-3.5 text-sm font-semibold ${dark?'text-white':'text-gray-900'}`}>${fmt(a.spend)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.impressions)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.reach)}</td>
+              <MetricCell metric="frequency" value={a.frequency} display={fmt(a.frequency,1)}/>
+              <MetricCell metric="cpm"       value={a.cpm}       display={`$${fmt(a.cpm)}`}/>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.cpc_link)}</td>
+              <MetricCell metric="ctr_link" value={a.ctr_link} display={`${fmt(a.ctr_link)}%`}/>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt(a.ctr_all)}%</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.lpv)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.costPerLPV)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.atc)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.costPerATC)}</td>
+              {/* Abandon ✅ FIX: initiate_checkout au lieu de atc-purchases */}
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.initiated_checkout)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmt((a.purchases/Math.max(a.lpv,1))*100)}%</td>
+              <td className={`px-4 py-3.5 text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{a.purchases}</td>
+              <MetricCell metric="cpr"      value={a.cpr}      display={`$${fmt(a.cpr)}`}/>
+              <MetricCell metric="roas"     value={a.roas}     display={`${fmt(a.roas)}x`}/>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>${fmt(a.revenue)}</td>
+              <td className={`px-4 py-3.5 text-sm ${dark?'text-gray-300':'text-gray-600'}`}>{fmtN(a.thruplay)}</td>
+              <MetricCell metric="hookRate" value={a.hookRate} display={`${fmt(a.hookRate)}%`}/>
+            </tr>
+          ))}
         </tbody>
       </table></div>
     </div>
@@ -271,40 +244,29 @@ function PublicitesTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const sortedAds=[...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
-  if(sortedAds.length===0) return (
+  const ads = [...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
+  if(ads.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">🎨</div>
-      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucun créatif actif</h3>
+      <div className="text-4xl mb-4">🎬</div>
+      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucun créatif</h3>
     </div>
   )
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {sortedAds.map((a:Ad)=>(
-        <div key={a.id} className={`rounded-xl overflow-hidden border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm flex flex-col`}>
-          <div className="relative w-full h-44 overflow-hidden">
-            {a.thumbnail?<img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover"
-              onError={e=>{e.currentTarget.style.display='none';(e.currentTarget.nextSibling as HTMLElement)?.classList?.remove('hidden')}}/>:null}
-            <div className={`${a.thumbnail?'hidden':''} absolute inset-0 flex items-center justify-center ${dark?'bg-[#0f172a]':'bg-gray-100'}`}><span className="text-5xl opacity-30">🎬</span></div>
-            <div className="absolute top-2 left-2 flex gap-1.5">
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-black/70 text-white">▶ Video</span>
-              {a.status==='ACTIVE'&&<span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-500/90 text-white">Live</span>}
-            </div>
-            {a.roas>10&&<div className="absolute top-2 right-2"><span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-yellow-400/90 text-gray-900">⭐ Top</span></div>}
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+      {ads.map((a:Ad)=>(
+        <div key={a.id} className={`rounded-xl overflow-hidden border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+          <div className="relative h-40 bg-gray-900 flex items-center justify-center overflow-hidden">
+            {a.thumbnail
+              ? <img src={a.thumbnail} alt="" className="w-full h-full object-cover opacity-90" onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
+              : <span className="text-5xl opacity-20">🎬</span>
+            }
+            <div className="absolute top-2 right-2"><StatusBadge status={a.status}/></div>
           </div>
-          <div className={`border-t border-b ${dark?'border-gray-800':'border-gray-100'}`}><AdPerformanceChart a={a} dark={dark}/></div>
-          <div className="px-4 pb-4 flex-1 flex flex-col">
-            <h4 className={`font-bold text-sm my-3 line-clamp-2 ${dark?'text-white':'text-gray-900'}`}>{a.name}</h4>
-            <p className={`text-[10px] mb-3 truncate ${dark?'text-gray-500':'text-gray-400'}`}>{a.campaign_name}</p>
-            <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-auto text-sm">
-              {[['Spend',`$${fmt(a.spend)}`],['Impressions',fmtN(a.impressions)],['ATC',fmtN(a.atc)],['Coût/ATC',`$${fmt(a.spend/Math.max(a.atc,1))}`],['Achats',fmtN(a.purchases)],['CTR',`${fmt(a.ctr_link)}%`]].map(([l,v])=>(
-                <div key={l} className="flex flex-col">
-                  <span className={`text-[10px] uppercase ${dark?'text-gray-500':'text-gray-400'}`}>{l}</span>
-                  <span className={`font-semibold ${dark?'text-gray-200':'text-gray-700'}`}>{v}</span>
-                </div>
-              ))}
-            </div>
+          <div className={`px-4 py-3 border-b ${dark?'border-gray-700':'border-gray-100'}`}>
+            <p className={`text-xs font-semibold truncate ${dark?'text-white':'text-gray-900'}`} title={a.name}>{a.name}</p>
+            <p className={`text-[10px] truncate mt-0.5 ${dark?'text-gray-400':'text-gray-500'}`}>{a.campaign_name}</p>
           </div>
+          <AdPerformanceChart a={a} dark={dark}/>
         </div>
       ))}
     </div>
@@ -312,266 +274,307 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const t=data.totals
-  const steps=[
-    {label:'Clics lien',   value:t.clicks_link,bg:'bg-[#fbcfe8]',wTop:100,wBottom:85},
-    {label:'Vues page',    value:t.lpv,        bg:'bg-[#f9a8d4]',wTop:82, wBottom:67},
-    {label:'Ajouts Panier',value:t.atc,        bg:'bg-[#f472b6]',wTop:64, wBottom:49},
-    {label:'Achats',       value:t.purchases,  bg:'bg-[#ec4899]',wTop:46, wBottom:31},
+  const t = data.totals
+  const steps = [
+    { label: 'Impressions', value: t.impressions,         color: '#3b82f6' },
+    { label: 'Vues page',   value: t.lpv,                 color: '#8b5cf6' },
+    { label: 'ATC',         value: t.atc,                 color: '#f59e0b' },
+    { label: 'Abandon',     value: t.initiated_checkout,  color: '#ef4444' },
+    { label: 'Achats',      value: t.purchases,           color: '#10b981' },
   ]
-  const metrics=[
-    {label:'Taux ATC',            value:`${fmt((t.atc/Math.max(t.lpv,1))*100)}%`},
-    {label:'Abandon (ATC-Achats)',value:t.atc-t.purchases},
-    {label:'Taux Conversion',      value:`${fmt((t.purchases/Math.max(t.lpv,1))*100)}%`},
-    {label:'Coût/ATC',            value:`$${fmt(t.costPerATC)}`},
-    {label:'Coût/LPV',            value:`$${fmt(t.costPerLPV)}`},
-  ]
+  const maxVal = steps[0].value || 1
   return (
-    <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="flex justify-center mb-16 mt-8">
-        <div className="flex flex-col w-full max-w-4xl mx-auto gap-2 py-4">
-          {steps.map((s,i)=>{
-            const prev=i>0?steps[i-1].value:null; const conv=prev?((s.value/Math.max(prev,1))*100):null
-            return (<div key={i} className="w-full flex h-16 sm:h-20 relative">
-              <div className="w-[35%] flex items-center justify-end pr-4"><span className={`text-xs sm:text-base font-medium text-right ${dark?'text-gray-200':'text-gray-900'}`}>{s.label}</span></div>
-              <div className="w-[30%] relative flex items-center justify-center">
-                <div className={`absolute inset-0 ${s.bg}`} style={{clipPath:`polygon(${(100-s.wTop)/2}% 0,${100-(100-s.wTop)/2}% 0,${100-(100-s.wBottom)/2}% 100%,${(100-s.wBottom)/2}% 100%)`}}/>
-                <span className="relative z-10 text-gray-900 font-bold text-lg drop-shadow-sm">{fmtN(s.value)}</span>
+    <div className={`rounded-xl border p-6 ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <p className={`text-sm font-semibold mb-6 ${dark?'text-gray-300':'text-gray-700'}`}>🔽 Funnel de conversion</p>
+      <div className="space-y-4">
+        {steps.map((s,i)=>(
+          <div key={s.label}>
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-xs font-medium ${dark?'text-gray-300':'text-gray-600'}`}>{s.label}</span>
+              <span className={`text-sm font-bold ${dark?'text-white':'text-gray-900'}`}>{fmtN(s.value)}</span>
+            </div>
+            <div className={`h-7 rounded-lg overflow-hidden ${dark?'bg-gray-800':'bg-gray-100'}`}>
+              <div
+                className="h-full rounded-lg flex items-center pl-3 transition-all duration-700"
+                style={{width:`${Math.max((s.value/maxVal)*100,s.value>0?1:0)}%`,background:s.color}}
+              >
+                {s.value>0&&<span className="text-white text-[10px] font-bold">{fmtN(s.value)}</span>}
               </div>
-              <div className="w-[35%] flex items-start pl-6 relative">
-                {i>0&&<div className="absolute -top-9 left-4"><div className={`text-[10px] font-bold px-2 py-1 rounded-full border ${dark?'bg-gray-800 border-gray-700 text-gray-400':'bg-gray-50 border-gray-200 text-gray-500'}`}>{fmt(conv)}%</div></div>}
-              </div>
-            </div>)
-          })}
-        </div>
+            </div>
+            {i<steps.length-1&&(
+              <p className={`text-[10px] mt-1 text-center ${dark?'text-gray-500':'text-gray-400'}`}>
+                ↓ {steps[i].value>0?((steps[i+1].value/steps[i].value)*100).toFixed(1):0}% passent à l'étape suivante
+              </p>
+            )}
+          </div>
+        ))}
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-8 border-t border-gray-200 dark:border-gray-700">
-        {metrics.map((m,i)=>(<div key={i} className="text-center">
-          <div className={`text-xs uppercase tracking-wider mb-2 ${dark?'text-gray-400':'text-gray-500'}`}>{m.label}</div>
-          <div className={`text-xl sm:text-2xl font-bold ${dark?'text-white':'text-gray-900'}`}>{m.value}</div>
-        </div>))}
+      <div className={`mt-6 pt-4 border-t ${dark?'border-gray-700':'border-gray-100'} grid grid-cols-2 gap-4`}>
+        <div className={`rounded-lg p-3 ${dark?'bg-gray-800':'bg-gray-50'}`}>
+          <p className={`text-xs ${dark?'text-gray-400':'text-gray-500'}`}>Conv. globale</p>
+          <p className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>{t.impressions>0?((t.purchases/t.impressions)*100).toFixed(3):0}%</p>
+        </div>
+        <div className={`rounded-lg p-3 ${dark?'bg-gray-800':'bg-gray-50'}`}>
+          <p className={`text-xs ${dark?'text-gray-400':'text-gray-500'}`}>Conv. LPV → Achat</p>
+          <p className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>{t.lpv>0?((t.purchases/t.lpv)*100).toFixed(2):0}%</p>
+        </div>
       </div>
     </div>
   )
 }
 
 function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const t=data.totals; const alerts:any[]=[]
-  if(t.cpr>3)       alerts.push({title:'CPR Critique',      desc:`CPR à $${fmt(t.cpr)}`,        type:'red',   icon:'🚨'})
-  else if(t.cpr<1.5)alerts.push({title:'CPR Excellent',      desc:`CPR à $${fmt(t.cpr)} !`,      type:'green', icon:'🟢'})
-  if(t.frequency>3) alerts.push({title:'Saturation Audience',desc:`Fréquence ${fmt(t.frequency)}`,type:'orange',icon:'⚠️'})
-  if(t.hookRate<20) alerts.push({title:'Hook Rate Faible',   desc:`${fmt(t.hookRate)}%`,          type:'orange',icon:'📊'})
-  if(t.ctr_link<2)  alerts.push({title:'CTR Faible',         desc:`${fmt(t.ctr_link)}%`,          type:'orange',icon:'📌'})
-  if(t.roas>10)     alerts.push({title:'ROAS Exceptionnel',  desc:`${fmt(t.roas)}x !`,            type:'green', icon:'🏆'})
+  type AlertItem = { type:'danger'|'warning'|'info'; label:string; name:string; value:string }
+  const alerts: AlertItem[] = []
+  data.campaigns.forEach((c:Campaign)=>{
+    if(c.roas<1&&c.spend>5)          alerts.push({type:'danger',  label:'ROAS faible',       name:c.name,value:`${fmt(c.roas)}x`})
+    if(c.frequency>3)                 alerts.push({type:'warning', label:'Fréquence élevée',  name:c.name,value:`${fmt(c.frequency,1)}x`})
+    if(c.ctr_link<0.5&&c.impressions>1000) alerts.push({type:'warning',label:'CTR faible',   name:c.name,value:`${fmt(c.ctr_link)}%`})
+  })
+  data.ads.forEach((a:Ad)=>{
+    if(a.roas<1&&a.spend>3)           alerts.push({type:'danger',  label:'Ad ROAS faible',    name:a.name,value:`${fmt(a.roas)}x`})
+    if(a.hookRate<5&&a.impressions>500)alerts.push({type:'info',   label:'Hook Rate faible',  name:a.name,value:`${fmt(a.hookRate)}%`})
+  })
+  const CLR = {
+    danger:  {bg:dark?'bg-red-900/30':'bg-red-50',    border:'border-red-500/30',    icon:'🔴',text:dark?'text-red-400':'text-red-700'},
+    warning: {bg:dark?'bg-orange-900/30':'bg-orange-50',border:'border-orange-500/30',icon:'⚠️',text:dark?'text-orange-400':'text-orange-700'},
+    info:    {bg:dark?'bg-blue-900/30':'bg-blue-50',   border:'border-blue-500/30',   icon:'ℹ️',text:dark?'text-blue-400':'text-blue-700'},
+  }
   if(alerts.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">✅</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
+      <div className="text-4xl mb-4">✅</div>
+      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucune alerte</h3>
+      <p className={`text-sm mt-2 ${dark?'text-gray-400':'text-gray-500'}`}>Toutes vos campagnes sont en bonne santé</p>
     </div>
   )
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {alerts.map((a,i)=>{ const c=CLS[a.type as keyof typeof CLS]; return (
-        <div key={i} className={`rounded-xl p-6 border ${c.border} ${c.bg} shadow-sm flex items-start gap-4`}>
-          <div className="text-3xl">{a.icon}</div>
-          <div><h4 className={`text-lg font-bold ${c.text}`}>{a.title}</h4><p className={`mt-1 text-sm ${dark?'text-gray-300':'text-gray-700'}`}>{a.desc}</p></div>
-        </div>
-      )})}
+    <div className="space-y-3">
+      {alerts.map((a,i)=>{
+        const c=CLR[a.type]
+        return (
+          <div key={i} className={`flex items-center justify-between rounded-xl border p-4 ${c.bg} ${c.border}`}>
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{c.icon}</span>
+              <div>
+                <p className={`text-xs font-semibold uppercase tracking-wide ${c.text}`}>{a.label}</p>
+                <p className={`text-sm font-medium truncate max-w-[300px] ${dark?'text-gray-200':'text-gray-800'}`}>{a.name}</p>
+              </div>
+            </div>
+            <span className={`text-lg font-bold ${c.text}`}>{a.value}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const daily=data.daily||[]; const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
-  const charts=[
-    {title:'ROAS',    dataKey:'roas',     color:'#10b981',prefix:'', suffix:'x'},
-    {title:'CPR',     dataKey:'cpr',      color:'#ef4444',prefix:'$',suffix:'' },
-    {title:'Dépenses', dataKey:'spend',    color:'#3b82f6',prefix:'$',suffix:'' },
-    {title:'Achats',  dataKey:'purchases',color:'#8b5cf6',prefix:'', suffix:'' },
-  ]
+  const daily = data.daily||[]
+  const grid  = dark?'#374151':'#f3f4f6'
+  const tip   = {background:dark?'#1e293b':'#fff',border:`1px solid ${dark?'#374151':'#e5e7eb'}`,borderRadius:8,fontSize:12}
+  const tick  = {fontSize:11,fill:dark?'#6b7280':'#9ca3af'}
+  if(daily.length===0) return (
+    <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <div className="text-4xl mb-4">📅</div>
+      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucune donnée historique</h3>
+    </div>
+  )
+  const card = (title:string, children:React.ReactNode) => (
+    <div className={`rounded-xl border p-4 ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <p className={`text-sm font-semibold mb-4 ${dark?'text-gray-300':'text-gray-700'}`}>{title}</p>
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={daily} margin={{top:5,right:10,left:0,bottom:5}}>
+          <CartesianGrid strokeDasharray="3 3" stroke={grid}/>
+          <XAxis dataKey="date" tick={tick}/>
+          <YAxis tick={tick}/>
+          <Tooltip contentStyle={tip}/>
+          {children}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {charts.map((c,i)=>(
-        <div key={i} className={`rounded-xl p-6 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-          <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 ${dark?'text-gray-400':'text-gray-500'}`}>{c.title} par jour</h3>
-          <div className="h-[200px]"><ResponsiveContainer width="100%" height="100%">
-            <LineChart data={daily} margin={{top:5,right:10,left:-20,bottom:0}}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false}/>
-              <XAxis dataKey="date" stroke={textColor} fontSize={12} tickLine={false} axisLine={false}/>
-              <YAxis stroke={textColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={v=>`${c.prefix}${v}${c.suffix}`}/>
-              <Tooltip contentStyle={{backgroundColor:dark?'#1f2937':'#fff',borderColor:dark?'#374151':'#e5e7eb',borderRadius:'8px'}}
-                formatter={(v:number)=>[`${c.prefix}${fmt(v)}${c.suffix}`,c.title]}/>
-              <Line type="monotone" dataKey={c.dataKey} stroke={c.color} strokeWidth={3} dot={{r:4,fill:c.color}} activeDot={{r:6}}/>
-            </LineChart>
-          </ResponsiveContainer></div>
-        </div>
-      ))}
+    <div className="space-y-6">
+      {card('📊 Spend & ROAS',<>
+        <Line type="monotone" dataKey="spend"     stroke="#3b82f6" strokeWidth={2} dot={false} name="Spend ($)"/>
+        <Line type="monotone" dataKey="roas"      stroke="#10b981" strokeWidth={2} dot={false} name="ROAS"/>
+      </>)}
+      {card('🛒 Achats & CPR',<>
+        <Line type="monotone" dataKey="purchases" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Achats"/>
+        <Line type="monotone" dataKey="cpr"       stroke="#ef4444" strokeWidth={2} dot={false} name="CPR ($)"/>
+      </>)}
     </div>
   )
 }
 
-function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAdAccountId }: {
-  dark: boolean
-  metaToken: string;       setMetaToken:       (v: string) => void
-  metaAdAccountId: string; setMetaAdAccountId: (v: string) => void
+function SettingsTab({ token, accountId, preset, onSave, dark }: {
+  token:string; accountId:string; preset:DatePreset
+  onSave:(t:string,a:string,p:DatePreset)=>void; dark:boolean
 }) {
-  const [tempToken, setTempToken] = useState(metaToken)
-  const [tempId,    setTempId]    = useState(metaAdAccountId)
-  const [saved,     setSaved]     = useState(false)
-  const save = () => {
-    localStorage.setItem('metaToken',       tempToken)
-    localStorage.setItem('metaAdAccountId', tempId)
-    setMetaToken(tempToken); setMetaAdAccountId(tempId)
-    setSaved(true); setTimeout(()=>setSaved(false),3000)
-  }
+  const [t,setT]=useState(token)
+  const [a,setA]=useState(accountId)
+  const [p,setP]=useState<DatePreset>(preset)
+  const inp=`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${dark?'bg-gray-800 border-gray-700 text-white placeholder-gray-500':'bg-white border-gray-200 text-gray-900 placeholder-gray-400'}`
   return (
-    <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm max-w-2xl mx-auto`}>
-      <h2 className={`text-2xl font-bold mb-6 ${dark?'text-white':'text-gray-900'}`}>⚙️ Paramètres API</h2>
-      <div className="space-y-6">
+    <div className={`max-w-lg rounded-xl border p-6 ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
+      <h2 className={`text-lg font-bold mb-6 ${dark?'text-white':'text-gray-900'}`}>⚙️ Paramètres API</h2>
+      <div className="space-y-4">
         <div>
-          <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Meta Access Token</label>
-          <input type="password" value={tempToken} onChange={e=>setTempToken(e.target.value)} placeholder="EAAB..."
-            className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
+          <label className={`block text-xs font-semibold mb-1.5 ${dark?'text-gray-400':'text-gray-600'}`}>Access Token Meta *</label>
+          <input type="password" value={t} onChange={e=>setT(e.target.value)} placeholder="EAAxxxxxxx..." className={inp}/>
         </div>
         <div>
-          <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Ad Account ID</label>
-          <input type="text" value={tempId} onChange={e=>setTempId(e.target.value)} placeholder="Ex: 884019833957409"
-            className={`w-full border rounded-lg px-4 py-2 text-sm outline-none ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-300 text-gray-900'}`}/>
-          <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Laissez vide pour afficher tous les comptes du token.</p>
+          <label className={`block text-xs font-semibold mb-1.5 ${dark?'text-gray-400':'text-gray-600'}`}>Ad Account ID (optionnel)</label>
+          <input type="text" value={a} onChange={e=>setA(e.target.value)} placeholder="act_XXXXXXXXXX" className={inp}/>
+          <p className={`text-[10px] mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Laissez vide pour tous les comptes</p>
         </div>
-        <button onClick={save} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">Sauvegarder</button>
-        {saved&&<div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 text-sm text-center font-semibold">✅ Sauvegardé !</div>}
+        <div>
+          <label className={`block text-xs font-semibold mb-1.5 ${dark?'text-gray-400':'text-gray-600'}`}>Période</label>
+          <select value={p} onChange={e=>setP(e.target.value as DatePreset)} className={inp}>
+            <option value="today">Aujourd'hui</option>
+            <option value="yesterday">Hier</option>
+            <option value="last_7d">7 derniers jours</option>
+            <option value="last_30d">30 derniers jours</option>
+            <option value="this_month">Ce mois</option>
+          </select>
+        </div>
+        <button onClick={()=>onSave(t,a,p)} className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
+          💾 Sauvegarder & Rafraîchir
+        </button>
       </div>
     </div>
   )
 }
 
-const TABS = [
-  {id:'overview'   as Tab, label:'📊 Vue Générale'},
-  {id:'campaigns'  as Tab, label:'🎯 Campagnes'   },
-  {id:'publicites' as Tab, label:'📰 Publicités'  },
-  {id:'creative'   as Tab, label:'🎨 Créatifs'    },
-  {id:'funnel'     as Tab, label:'📉 Funnel'      },
-  {id:'alerts'     as Tab, label:'🚨 Alertes'     },
-  {id:'history'    as Tab, label:'📈 Historique'  },
-]
-const DATES = [
-  {value:'today'      as DatePreset, label:"Aujourd'hui"      },
-  {value:'yesterday'  as DatePreset, label:'Hier'             },
-  {value:'last_7d'    as DatePreset, label:'7 derniers jours' },
-  {value:'last_30d'   as DatePreset, label:'30 derniers jours'},
-  {value:'this_month' as DatePreset, label:'Ce mois'          },
-]
+export default function App() {
+  const [tab,       setTab]       = useState<Tab>('overview')
+  const [dark,      setDark]      = useState(true)
+  const [data,      setData]      = useState<MetaData|null>(null)
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState<string|null>(null)
+  const [token,     setToken]     = useState(()=>localStorage.getItem('meta_token')||'')
+  const [accountId, setAccountId] = useState(()=>localStorage.getItem('meta_account_id')||'')
+  const [preset,    setPreset]    = useState<DatePreset>('last_7d')
 
-export default function Index() {
-  const [dark,    setDark]    = useState(()=>localStorage.getItem('theme')!=='light')
-  const [tab,     setTab]     = useState<Tab>('overview')
-  const [preset,  setPreset]  = useState<DatePreset>('last_7d')
-  const [loading, setLoading] = useState(true)
-  const [data,    setData]    = useState<MetaData|null>(null)
-  const [error,   setError]   = useState<string|null>(null)
-  const [metaToken,       setMetaToken]       = useState(()=>localStorage.getItem('metaToken')       ||'')
-  const [metaAdAccountId, setMetaAdAccountId] = useState(()=>localStorage.getItem('metaAdAccountId')||'')
-
-  useEffect(()=>{
-    document.documentElement.classList.toggle('dark',dark)
-    localStorage.setItem('theme',dark?'dark':'light')
-  },[dark])
-
-  const fetchData = async () => {
-    if(tab==='settings') return
-    setLoading(true); setError(null)
+  const fetchData = async (tk:string,acc:string,p:DatePreset) => {
+    if(!tk){setError('Token manquant — allez dans ⚙️ Paramètres');return}
+    setLoading(true);setError(null)
     try {
-      const url = new URL('/api/meta', window.location.origin)
-      url.searchParams.set('date_preset', preset)
-      if(metaToken)       url.searchParams.set('access_token',  metaToken)
-      if(metaAdAccountId) url.searchParams.set('ad_account_id', metaAdAccountId)
-      const r = await fetch(url.toString())
-      const text = await r.text()
-      let j: any
-      try { j=JSON.parse(text) } catch { throw new Error('Réponse API invalide.') }
-      if(j.error) throw new Error(j.error)
-      setData(j)
-    } catch(e:any) {
-      setError(e.message||'Erreur inattendue'); setData(null)
-    } finally { setLoading(false) }
+      const res = await fetch(`/api/meta?access_token=${encodeURIComponent(tk)}&ad_account_id=${encodeURIComponent(acc)}&date_preset=${p}`)
+      const d   = await res.json()
+      if(d.error) throw new Error(d.error)
+      setData(d)
+    } catch(e:any){
+      setError(e.message||'Erreur de connexion')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(()=>{ fetchData() },[preset])
+  useEffect(()=>{fetchData(token,accountId,preset)},[]) // eslint-disable-line
 
-  const d   = dark
-  const hdr = `${d?'bg-gray-900/95 border-gray-800':'bg-white/95 border-gray-200'} backdrop-blur-md`
-  const inp = `${d?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-200 text-gray-700'} border rounded-lg px-3 py-2 text-sm outline-none`
-  const btn = `${d?'bg-gray-800 text-gray-300 hover:bg-gray-700':'bg-gray-100 text-gray-600 hover:bg-gray-200'} p-2 rounded-lg transition-colors text-sm`
+  const handleSave = (t:string,a:string,p:DatePreset) => {
+    localStorage.setItem('meta_token',t)
+    localStorage.setItem('meta_account_id',a)
+    setToken(t);setAccountId(a);setPreset(p)
+    fetchData(t,a,p)
+    setTab('overview')
+  }
+
+  const TABS: {id:Tab;label:string;icon:string}[] = [
+    {id:'overview',  label:'Vue Générale',icon:'🏠'},
+    {id:'campaigns', label:'Campagnes',   icon:'📊'},
+    {id:'publicites',label:'Publicités',  icon:'📋'},
+    {id:'creative',  label:'Créatifs',    icon:'🎬'},
+    {id:'funnel',    label:'Funnel',      icon:'🔽'},
+    {id:'alerts',    label:'Alertes',     icon:'🔔'},
+    {id:'history',   label:'Historique',  icon:'📅'},
+    {id:'settings',  label:'Paramètres', icon:'⚙️'},
+  ]
+
+  const PRESETS: {value:DatePreset;label:string}[] = [
+    {value:'today',     label:"Aujourd'hui"},
+    {value:'yesterday', label:'Hier'},
+    {value:'last_7d',   label:'7 jours'},
+    {value:'last_30d',  label:'30 jours'},
+    {value:'this_month',label:'Ce mois'},
+  ]
+
+  const bg  = dark?'bg-[#0f172a]':'bg-gray-50'
+  const nav = dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'
 
   return (
-    <div className={`min-h-screen font-sans ${d?'bg-[#0f172a] text-gray-100':'bg-[#f8fafc] text-gray-900'}`}>
-      <header className={`border-b ${hdr} sticky top-0 z-50`}>
-        <div className="max-w-screen-2xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-blue-500">⚡</span>
-              <span className="font-extrabold tracking-tight">Ads</span>
-              <span className={`font-light text-sm ${d?'text-gray-500':'text-gray-400'}`}>Analyse</span>
-            </div>
-            <button onClick={()=>setTab('settings')} className={`${btn} ${tab==='settings'?(d?'bg-gray-700':'bg-gray-200'):''}`}>⚙️ Paramètres</button>
-            <nav className={`hidden lg:flex p-1 rounded-xl ${d?'bg-[#1e293b]':'bg-gray-100/80'} shadow-inner`}>
-              {TABS.map(t=>(
-                <button key={t.id} onClick={()=>setTab(t.id)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                    tab===t.id?(d?'bg-[#0f172a] text-white shadow border border-gray-800':'bg-white text-gray-900 shadow-sm border border-gray-200/50')
-                    :`border border-transparent ${d?'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50':'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'}`
-                  }`}>{t.label}</button>
-              ))}
-            </nav>
+    <div className={`min-h-screen ${bg} font-sans`}>
+      <nav className={`sticky top-0 z-50 border-b ${nav} px-4`}>
+        <div className="flex items-center justify-between h-14 max-w-screen-2xl mx-auto gap-4">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xl">📈</span>
+            <span className={`text-sm font-bold hidden sm:block ${dark?'text-white':'text-gray-900'}`}>Ads Analyse</span>
           </div>
-          <div className="flex items-center gap-2">
-            <select value={preset} onChange={e=>setPreset(e.target.value as DatePreset)} className={inp}>
-              {DATES.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {TABS.map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                  tab===t.id?'bg-blue-600 text-white':
+                  dark?'text-gray-400 hover:text-white hover:bg-gray-700':'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <span>{t.icon}</span>
+                <span className="hidden md:inline">{t.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <select value={preset} onChange={e=>{const p=e.target.value as DatePreset;setPreset(p);fetchData(token,accountId,p)}}
+              className={`text-xs rounded-lg border px-2 py-1.5 ${dark?'bg-gray-800 border-gray-700 text-gray-200':'bg-white border-gray-200 text-gray-700'}`}>
+              {PRESETS.map(p=><option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
-            <button onClick={fetchData} className={btn}>🔄</button>
-            <button onClick={()=>setDark(!d)} className={btn}>{d?'☀️':'🌙'}</button>
+            <button onClick={()=>fetchData(token,accountId,preset)} disabled={loading}
+              className={`px-2.5 py-1.5 rounded-lg text-xs ${dark?'bg-gray-700 hover:bg-gray-600 text-gray-200':'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>
+              {loading?'⏳':'🔄'}
+            </button>
+            <button onClick={()=>setDark(d=>!d)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs ${dark?'bg-gray-700 hover:bg-gray-600 text-gray-200':'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>
+              {dark?'☀️':'🌙'}
+            </button>
           </div>
         </div>
-        <div className={`lg:hidden flex overflow-x-auto px-6 py-3 gap-2 border-t ${d?'border-gray-800 bg-[#0f172a]':'border-gray-200 bg-white'} no-scrollbar`}>
-          {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)}
-              className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                tab===t.id?(d?'bg-[#1e293b] text-white border border-gray-700':'bg-gray-100 text-gray-900 border border-gray-200')
-                :`border border-transparent ${d?'text-gray-400':'text-gray-500'}`
-              }`}>{t.label}</button>
-          ))}
-        </div>
-      </header>
-      <main className="max-w-screen-2xl mx-auto px-6 py-8">
-        {tab==='settings'?(
-          <SettingsTab dark={d} metaToken={metaToken} setMetaToken={setMetaToken}
-            metaAdAccountId={metaAdAccountId} setMetaAdAccountId={setMetaAdAccountId}/>
-        ):(
+      </nav>
+
+      <main className="max-w-screen-2xl mx-auto px-4 py-6">
+        {tab==='settings'&&<SettingsTab token={token} accountId={accountId} preset={preset} onSave={handleSave} dark={dark}/>}
+        {tab!=='settings'&&error&&(
+          <div className={`rounded-xl border p-4 mb-6 ${dark?'bg-red-900/20 border-red-500/30':'bg-red-50 border-red-200'}`}>
+            <p className={`text-sm font-semibold ${dark?'text-red-400':'text-red-700'}`}>❌ {error}</p>
+            <button onClick={()=>setTab('settings')} className="mt-2 text-xs underline opacity-70">⚙️ Aller aux paramètres</button>
+          </div>
+        )}
+        {tab!=='settings'&&loading&&(
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center">
+              <div className="text-4xl mb-4 animate-pulse">📡</div>
+              <p className={`text-sm ${dark?'text-gray-400':'text-gray-500'}`}>Chargement Meta...</p>
+            </div>
+          </div>
+        )}
+        {tab!=='settings'&&!loading&&!data&&!error&&(
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center">
+              <div className="text-4xl mb-4">🔑</div>
+              <p className={`text-lg font-semibold mb-2 ${dark?'text-white':'text-gray-900'}`}>Token manquant</p>
+              <button onClick={()=>setTab('settings')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">⚙️ Paramètres</button>
+            </div>
+          </div>
+        )}
+        {tab!=='settings'&&!loading&&data&&(
           <>
-            {loading&&(
-              <div className="flex flex-col items-center justify-center py-32 gap-4">
-                <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"/>
-                <p className="text-gray-400 text-sm">Chargement...</p>
-              </div>
-            )}
-            {!loading&&error&&(
-              <div className={`rounded-2xl p-10 text-center ${d?'bg-gray-800':'bg-white'} shadow-sm max-w-lg mx-auto mt-12`}>
-                <div className="text-5xl mb-4">❌</div>
-                <h3 className="text-xl font-bold text-red-400 mb-2">Erreur</h3>
-                <p className={`text-sm ${d?'text-gray-400':'text-gray-500'}`}>{error}</p>
-              </div>
-            )}
-            {!loading&&!error&&data&&(
-              <div className="animate-in fade-in duration-500">
-                {tab==='overview'   &&<OverviewTab   data={data} dark={d}/>}
-                {tab==='campaigns'  &&<CampaignsTab  data={data} dark={d}/>}
-                {tab==='publicites' &&<PublicitesTab data={data} dark={d}/>}
-                {tab==='creative'   &&<CreativeTab   data={data} dark={d}/>}
-                {tab==='funnel'     &&<FunnelTab     data={data} dark={d}/>}
-                {tab==='alerts'     &&<AlertsTab     data={data} dark={d}/>}
-                {tab==='history'    &&<HistoryTab    data={data} dark={d}/>}
-              </div>
-            )}
+            {tab==='overview'   &&<OverviewTab   data={data} dark={dark}/>}
+            {tab==='campaigns'  &&<CampaignsTab  data={data} dark={dark}/>}
+            {tab==='publicites' &&<PublicitesTab data={data} dark={dark}/>}
+            {tab==='creative'   &&<CreativeTab   data={data} dark={dark}/>}
+            {tab==='funnel'     &&<FunnelTab     data={data} dark={dark}/>}
+            {tab==='alerts'     &&<AlertsTab     data={data} dark={dark}/>}
+            {tab==='history'    &&<HistoryTab    data={data} dark={dark}/>}
           </>
         )}
       </main>
