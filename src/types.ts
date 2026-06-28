@@ -1,10 +1,9 @@
 export type DatePreset = 'today' | 'yesterday' | 'last_7d' | 'last_30d' | 'this_month'
-export type Tab        = 'overview' | 'campaigns' | 'creative' | 'funnel' | 'alerts' | 'history' | 'settings'
+export type Tab        = 'overview' | 'campaigns' | 'publicites' | 'creative' | 'funnel' | 'alerts' | 'history' | 'settings'
 export type MetricKey  = 'cpr' | 'roas' | 'ctr_link' | 'frequency' | 'hookRate' | 'cpm'
 
 export interface Campaign {
   id: string; name: string; status: string; daily_budget: number
-  page_id: string | null
   spend: number; impressions: number; reach: number; frequency: number; cpm: number
   cpc_link: number; ctr_link: number; ctr_all: number; clicks_link: number
   lpv: number; atc: number; costPerATC: number; costPerLPV: number
@@ -14,8 +13,8 @@ export interface Campaign {
 
 export interface Ad {
   id: string; name: string; status: string
+  campaign_id: string; campaign_name: string
   thumbnail: string | null
-  page_id: string | null
   spend: number; impressions: number; reach: number; frequency: number; cpm: number
   ctr_link: number; ctr_all: number; clicks_link: number; cpc_link: number
   purchases: number; atc: number; lpv: number; videoViews: number; revenue: number
