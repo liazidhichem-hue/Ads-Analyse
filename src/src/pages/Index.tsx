@@ -5,7 +5,7 @@ import type { MetaData, DatePreset, Tab, MetricKey, Campaign, Ad, DailyPoint } f
 const fmt  = (n: number, d = 2) => Number(n || 0).toFixed(d)
 const fmtN = (n: number) => Math.round(n || 0).toLocaleString('fr-FR')
 
-// ─── Date helpers ───────────────────────────────────────
+// ===== DATE RANGE PICKER =====
 const fmtD       = (d: Date) => d.toISOString().split('T')[0]
 const todayStr   = () => fmtD(new Date())
 const daysAgoStr = (n: number) => { const d = new Date(); d.setDate(d.getDate()-n); return fmtD(d) }
@@ -18,59 +18,60 @@ const lastWeekStart  = () => { const d=new Date(); const day=d.getDay(); d.setDa
 const lastWeekEnd    = () => { const d=new Date(); const day=d.getDay(); d.setDate(d.getDate()-day); return fmtD(d) }
 
 const DR_PRESETS = [
-  { label:"Aujourd'hui",         key:'today',          since:todayStr,       until:todayStr        },
-  { label:'Hier',                key:'yesterday',      since:yesterdayStr,   until:yesterdayStr    },
-  { label:"Aujourd'hui et hier", key:'today_yesterday',since:yesterdayStr,   until:todayStr        },
-  { label:'7 derniers jours',    key:'last_7d',        since:()=>daysAgoStr(7),  until:todayStr    },
-  { label:'14 derniers jours',   key:'last_14d',       since:()=>daysAgoStr(14), until:todayStr    },
-  { label:'28 derniers jours',   key:'last_28d',       since:()=>daysAgoStr(28), until:todayStr    },
-  { label:'30 derniers jours',   key:'last_30d',       since:()=>daysAgoStr(30), until:todayStr    },
-  { label:'Cette semaine',       key:'this_week',      since:thisWeekStart,  until:todayStr        },
-  { label:'Derni\u00e8re semaine',    key:'last_week',      since:lastWeekStart,  until:lastWeekEnd     },
-  { label:'Ce mois-ci',          key:'this_month',     since:thisMonthStart, until:todayStr        },
-  { label:'Dernier mois',        key:'last_month',     since:lastMonthStart, until:lastMonthEnd    },
-  { label:'Maximum',             key:'maximum',        since:()=>'2020-01-01',until:todayStr       },
+  { label:"Aujourd'hui",         key:'today',          since:todayStr,           until:todayStr        },
+  { label:'Hier',                key:'yesterday',      since:yesterdayStr,       until:yesterdayStr    },
+  { label:"Aujourd'hui et hier", key:'today_yesterday',since:yesterdayStr,       until:todayStr        },
+  { label:'7 derniers jours',    key:'last_7d',        since:()=>daysAgoStr(7),  until:todayStr        },
+  { label:'14 derniers jours',   key:'last_14d',       since:()=>daysAgoStr(14), until:todayStr        },
+  { label:'28 derniers jours',   key:'last_28d',       since:()=>daysAgoStr(28), until:todayStr        },
+  { label:'30 derniers jours',   key:'last_30d',       since:()=>daysAgoStr(30), until:todayStr        },
+  { label:'Cette semaine',       key:'this_week',      since:thisWeekStart,      until:todayStr        },
+  { label:'Dernière semaine',    key:'last_week',      since:lastWeekStart,      until:lastWeekEnd     },
+  { label:'Ce mois-ci',          key:'this_month',     since:thisMonthStart,     until:todayStr        },
+  { label:'Dernier mois',        key:'last_month',     since:lastMonthStart,     until:lastMonthEnd    },
+  { label:'Maximum',             key:'maximum',        since:()=>'2020-01-01',   until:todayStr        },
 ]
 
-const MONTHS_FR = ['Janvier','F\u00e9vrier','Mars','Avril','Mai','Juin','Juillet','Ao\u00fbt','Septembre','Octobre','Novembre','D\u00e9cembre']
+const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAYS_FR   = ['Lu','Ma','Me','Je','Ve','Sa','Di']
 
-interface DRValue { since:string; until:string; key:string }
+interface DRValue { since: string; until: string; key: string }
 
-// ─── CalendarMonth ──────────────────────────────────────
-function CalendarMonth({ year,month,since,until,hovered,onSelect,onHover,dark }: {
-  year:number;month:number;since:string;until:string;hovered:string
-  onSelect:(d:string)=>void;onHover:(d:string)=>void;dark:boolean
+function CalendarMonth({ year, month, since, until, hovered, onSelect, onHover, dark }: {
+  year: number; month: number; since: string; until: string; hovered: string
+  onSelect: (d: string) => void; onHover: (d: string) => void; dark: boolean
 }) {
-  const firstDay   = new Date(year,month,1)
-  const daysInMonth= new Date(year,month+1,0).getDate()
-  const startDow   = (firstDay.getDay()+6)%7
-  const cells:(number|null)[]=[]
-  for(let i=0;i<startDow;i++) cells.push(null)
-  for(let i=1;i<=daysInMonth;i++) cells.push(i)
-  const ds=(day:number)=>`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  const firstDay    = new Date(year, month, 1)
+  const daysInMonth = new Date(year, month+1, 0).getDate()
+  const startDow    = (firstDay.getDay()+6) % 7
+  const cells: (number|null)[] = []
+  for (let i=0; i<startDow; i++) cells.push(null)
+  for (let i=1; i<=daysInMonth; i++) cells.push(i)
+  const ds = (day: number) => `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
   return (
     <div className="w-56">
       <p className={`text-center text-xs font-bold mb-2 ${dark?'text-white':'text-gray-800'}`}>{MONTHS_FR[month]} {year}</p>
       <div className="grid grid-cols-7 mb-1">
-        {DAYS_FR.map(d=><div key={d} className={`text-center text-[9px] font-medium ${dark?'text-gray-500':'text-gray-400'}`}>{d}</div>)}
+        {DAYS_FR.map(d => <div key={d} className={`text-center text-[9px] font-medium ${dark?'text-gray-500':'text-gray-400'}`}>{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-y-0.5">
-        {cells.map((day,i)=>{
-          if(!day) return <div key={i}/>
-          const d=ds(day)
-          const isStart=d===since; const isEnd=d===until
-          const endCmp=until||hovered
-          const inRange=since&&endCmp&&d>Math.min(since,endCmp)&&d<Math.max(since,endCmp)
-          const isToday=d===todayStr()
+        {cells.map((day, i) => {
+          if (!day) return <div key={i}/>
+          const d = ds(day)
+          const isStart = d === since
+          const isEnd   = d === until
+          const endCmp  = until || hovered
+          const inRange = since && endCmp && d > Math.min(since, endCmp) && d < Math.max(since, endCmp)
+          const isToday = d === todayStr()
           return (
-            <div key={i} onClick={()=>onSelect(d)} onMouseEnter={()=>onHover(d)}
-              className={`text-center text-[11px] py-1 cursor-pointer rounded transition-all select-none
-                ${isStart||isEnd?'bg-blue-600 text-white font-bold rounded-full':''}
-                ${inRange?(dark?'bg-blue-900/50 text-blue-300':'bg-blue-100 text-blue-700'):''}
-                ${!isStart&&!isEnd&&!inRange?(dark?'text-gray-300 hover:bg-gray-700 rounded-full':'text-gray-700 hover:bg-gray-100 rounded-full'):''}
-                ${isToday&&!isStart&&!isEnd?'font-bold underline':''}
-              `}>{day}</div>
+            <div key={i} onClick={() => onSelect(d)} onMouseEnter={() => onHover(d)}
+              className={[
+                'text-center text-[11px] py-1 cursor-pointer rounded transition-all select-none',
+                isStart||isEnd ? 'bg-blue-600 text-white font-bold rounded-full' : '',
+                inRange ? (dark ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-700') : '',
+                !isStart&&!isEnd&&!inRange ? (dark ? 'text-gray-300 hover:bg-gray-700 rounded-full' : 'text-gray-700 hover:bg-gray-100 rounded-full') : '',
+                isToday&&!isStart&&!isEnd ? 'font-bold underline' : ''
+              ].join(' ')}>{day}</div>
           )
         })}
       </div>
@@ -78,103 +79,112 @@ function CalendarMonth({ year,month,since,until,hovered,onSelect,onHover,dark }:
   )
 }
 
-// ─── DateRangePicker (style Meta) ──────────────────────────
-function DateRangePicker({ value,onChange,dark }: { value:DRValue;onChange:(v:DRValue)=>void;dark:boolean }) {
-  const [open,   setOpen]   = useState(false)
-  const [tmpS,   setTmpS]   = useState(value.since)
-  const [tmpU,   setTmpU]   = useState(value.until)
-  const [phase,  setPhase]  = useState<'since'|'until'>('since')
-  const [hovered,setHovered]= useState('')
-  const [view,   setView]   = useState(()=>{ const d=new Date(); d.setDate(1); return d })
+function DateRangePicker({ value, onChange, dark }: { value: DRValue; onChange: (v: DRValue) => void; dark: boolean }) {
+  const [open,    setOpen]    = useState(false)
+  const [tmpS,    setTmpS]    = useState(value.since)
+  const [tmpU,    setTmpU]    = useState(value.until)
+  const [phase,   setPhase]   = useState<'since'|'until'>('since')
+  const [hovered, setHovered] = useState('')
+  const [view,    setView]    = useState(() => { const d = new Date(); d.setDate(1); return d })
   const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(()=>{
-    const handler=(e:MouseEvent)=>{ if(ref.current&&!ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown',handler)
-    return ()=>document.removeEventListener('mousedown',handler)
-  },[])
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
-  const next=new Date(view.getFullYear(),view.getMonth()+1,1)
+  const next = new Date(view.getFullYear(), view.getMonth()+1, 1)
 
-  const handleDay=(d:string)=>{
-    if(phase==='since'){ setTmpS(d); setTmpU(''); setPhase('until') }
-    else{ if(d<tmpS){setTmpU(tmpS);setTmpS(d)}else{setTmpU(d)}; setPhase('since') }
+  const handleDay = (d: string) => {
+    if (phase === 'since') { setTmpS(d); setTmpU(''); setPhase('until') }
+    else { if (d < tmpS) { setTmpU(tmpS); setTmpS(d) } else { setTmpU(d) }; setPhase('since') }
   }
-  const handlePreset=(p:typeof DR_PRESETS[0])=>{
-    const s=p.since(),u=p.until()
-    onChange({since:s,until:u,key:p.key})
-    setTmpS(s);setTmpU(u);setOpen(false)
+  const handlePreset = (p: typeof DR_PRESETS[0]) => {
+    const s = p.since(), u = p.until()
+    onChange({ since: s, until: u, key: p.key })
+    setTmpS(s); setTmpU(u); setOpen(false)
   }
-  const handleApply=()=>{
-    if(tmpS&&tmpU){onChange({since:tmpS,until:tmpU,key:'custom'});setOpen(false)}
+  const handleApply = () => {
+    if (tmpS && tmpU) { onChange({ since: tmpS, until: tmpU, key: 'custom' }); setOpen(false) }
   }
-  const label=()=>{
-    if(value.key==='custom') return `${value.since} \u2192 ${value.until}`
-    return DR_PRESETS.find(p=>p.key===value.key)?.label||'30 derniers jours'
+  const label = () => {
+    if (value.key === 'custom') return `${value.since} → ${value.until}`
+    return DR_PRESETS.find(p => p.key === value.key)?.label || '7 derniers jours'
   }
-  const inp=`text-xs rounded-lg border px-3 py-2 flex items-center gap-1.5 whitespace-nowrap ${
-    dark?'bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700':'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-  } transition-colors`
+  const btnCls = [
+    'text-xs rounded-lg border px-3 py-2 flex items-center gap-1.5 whitespace-nowrap transition-colors',
+    dark ? 'bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+  ].join(' ')
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={()=>setOpen(o=>!o)} className={inp}>
-        \ud83d\udcc5 {label()}
+      <button onClick={() => setOpen(o => !o)} className={btnCls}>
+        📅 {label()}
       </button>
-      {open&&(
-        <div className={`absolute top-10 right-0 z-50 rounded-xl shadow-2xl border flex overflow-hidden ${
-          dark?'bg-[#1e293b] border-gray-700':'bg-white border-gray-200'
-        }`} style={{minWidth:560}}>
+      {open && (
+        <div className={[
+          'absolute top-10 right-0 z-50 rounded-xl shadow-2xl border flex overflow-hidden',
+          dark ? 'bg-[#1e293b] border-gray-700' : 'bg-white border-gray-200'
+        ].join(' ')} style={{ minWidth: 560 }}>
+
           {/* Presets */}
-          <div className={`w-44 border-r flex flex-col p-2 gap-0.5 overflow-y-auto ${
-            dark?'border-gray-700 bg-[#162032]':'border-gray-100 bg-gray-50'
-          }`}>
-            {DR_PRESETS.map(p=>(
-              <button key={p.key} onClick={()=>handlePreset(p)}
-                className={`text-left text-xs px-3 py-2 rounded-lg transition-colors ${
-                  value.key===p.key?'bg-blue-600 text-white':
-                  dark?'text-gray-300 hover:bg-gray-700':'text-gray-700 hover:bg-blue-50'
-                }`}>{p.label}</button>
+          <div className={[
+            'w-44 border-r flex flex-col p-2 gap-0.5 overflow-y-auto',
+            dark ? 'border-gray-700 bg-[#162032]' : 'border-gray-100 bg-gray-50'
+          ].join(' ')}>
+            {DR_PRESETS.map(p => (
+              <button key={p.key} onClick={() => handlePreset(p)}
+                className={[
+                  'text-left text-xs px-3 py-2 rounded-lg transition-colors',
+                  value.key === p.key ? 'bg-blue-600 text-white' :
+                  dark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-blue-50'
+                ].join(' ')}>{p.label}</button>
             ))}
           </div>
+
           {/* Calendar */}
           <div className="flex flex-col p-4">
             <div className={`flex items-center gap-3 mb-4 text-xs ${dark?'text-gray-300':'text-gray-600'}`}>
-              <div className={`px-3 py-1.5 rounded-lg border font-medium ${
-                phase==='since'?'border-blue-500 text-blue-500 bg-blue-500/10':dark?'border-gray-600':'border-gray-200'
-              }`}>{tmpS||'Date d\u00e9but'}</div>
-              <span className={dark?'text-gray-500':'text-gray-400'}>\u2192</span>
-              <div className={`px-3 py-1.5 rounded-lg border font-medium ${
-                phase==='until'?'border-blue-500 text-blue-500 bg-blue-500/10':dark?'border-gray-600':'border-gray-200'
-              }`}>{tmpU||'Date fin'}</div>
+              <div className={[
+                'px-3 py-1.5 rounded-lg border font-medium',
+                phase === 'since' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : dark ? 'border-gray-600' : 'border-gray-200'
+              ].join(' ')}>{tmpS || 'Date début'}</div>
+              <span className={dark?'text-gray-500':'text-gray-400'}>→</span>
+              <div className={[
+                'px-3 py-1.5 rounded-lg border font-medium',
+                phase === 'until' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : dark ? 'border-gray-600' : 'border-gray-200'
+              ].join(' ')}>{tmpU || 'Date fin'}</div>
             </div>
+
             <div className="flex items-start gap-6">
               <div className="relative">
-                <button onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()-1,1))}
-                  className={`absolute -top-6 left-0 text-sm px-1 ${dark?'text-gray-400 hover:text-white':'text-gray-400 hover:text-gray-700'}`}>\u2039</button>
+                <button onClick={() => setView(v => new Date(v.getFullYear(), v.getMonth()-1, 1))}
+                  className={`absolute -top-6 left-0 text-sm px-1 ${dark?'text-gray-400 hover:text-white':'text-gray-400 hover:text-gray-700'}`}>‹</button>
                 <CalendarMonth year={view.getFullYear()} month={view.getMonth()}
                   since={tmpS} until={tmpU} hovered={hovered}
                   onSelect={handleDay} onHover={setHovered} dark={dark}/>
               </div>
               <div className="relative">
-                <button onClick={()=>setView(v=>new Date(v.getFullYear(),v.getMonth()+1,1))}
-                  className={`absolute -top-6 right-0 text-sm px-1 ${dark?'text-gray-400 hover:text-white':'text-gray-400 hover:text-gray-700'}`}>\u203a</button>
+                <button onClick={() => setView(v => new Date(v.getFullYear(), v.getMonth()+1, 1))}
+                  className={`absolute -top-6 right-0 text-sm px-1 ${dark?'text-gray-400 hover:text-white':'text-gray-400 hover:text-gray-700'}`}>›</button>
                 <CalendarMonth year={next.getFullYear()} month={next.getMonth()}
                   since={tmpS} until={tmpU} hovered={hovered}
                   onSelect={handleDay} onHover={setHovered} dark={dark}/>
               </div>
             </div>
-            <div className={`flex items-center justify-between mt-4 pt-3 border-t ${
-              dark?'border-gray-700':'border-gray-100'
-            }`}>
-              <span className={`text-[10px] ${dark?'text-gray-500':'text-gray-400'}`}>\ud83c\udf0d Africa/Algiers</span>
+
+            <div className={`flex items-center justify-between mt-4 pt-3 border-t ${dark?'border-gray-700':'border-gray-100'}`}>
+              <span className={`text-[10px] ${dark?'text-gray-500':'text-gray-400'}`}>🌍 Africa/Algiers</span>
               <div className="flex gap-2">
-                <button onClick={()=>setOpen(false)}
+                <button onClick={() => setOpen(false)}
                   className={`text-xs px-4 py-1.5 rounded-lg border ${
-                    dark?'border-gray-600 text-gray-300 hover:bg-gray-700':'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    dark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}>Annuler</button>
-                <button onClick={handleApply} disabled={!tmpS||!tmpU}
-                  className="text-xs px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-40">
+                <button onClick={handleApply} disabled={!tmpS || !tmpU}
+                  className="text-xs px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-40 transition-colors">
                   Appliquer
                 </button>
               </div>
@@ -185,8 +195,8 @@ function DateRangePicker({ value,onChange,dark }: { value:DRValue;onChange:(v:DR
     </div>
   )
 }
+// ===== FIN DATE RANGE PICKER =====
 
-// ─── Tout le reste INCHANGÉ ──────────────────────────────────
 function metricColor(k: MetricKey, v: number): 'green' | 'orange' | 'red' | 'blue' {
   switch (k) {
     case 'cpr':       return v < 1.5 ? 'green' : v < 3   ? 'orange' : 'red'
@@ -221,7 +231,7 @@ function KPICard({ label, value, icon, dark, trend, sparklineData, sparklineKey,
         </div>
         {trend !== undefined && (
           <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${isPos ? 'text-emerald-600 bg-emerald-500/10' : 'text-red-600 bg-red-500/10'}`}>
-            {isPos ? '\u2191' : '\u2193'} {Math.abs(trend)}%
+            {isPos ? '↑' : '↓'} {Math.abs(trend)}%
           </div>
         )}
       </div>
@@ -292,11 +302,11 @@ function AdPerformanceChart({ a, dark }: { a: Ad; dark: boolean }) {
 function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals; const daily=data.daily||[]
   const kpis: KPICardProps[] = [
-    {label:'Spend',    value:`$${fmt(t.spend)}`,       icon:'\ud83d\udcb8',dark,trend:12.5,sparklineData:daily,sparklineKey:'spend',    sparklineColor:'#3b82f6'},
-    {label:'Purchases',value:fmtN(t.purchases),        icon:'\ud83d\uded2',dark,trend:8.2, sparklineData:daily,sparklineKey:'purchases',sparklineColor:'#8b5cf6'},
-    {label:'CPR',      value:`$${fmt(t.cpr)}`,         icon:'\ud83c\udfaf',dark,trend:-4.3,sparklineData:daily,sparklineKey:'cpr',      sparklineColor:'#ef4444'},
-    {label:'ROAS',     value:`${fmt(t.roas)}x`,        icon:'\ud83d\udcc8',dark,trend:15.4,sparklineData:daily,sparklineKey:'roas',     sparklineColor:'#10b981'},
-    {label:'Budget/j', value:`$${fmt(t.budget_total)}`,icon:'\ud83d\udcb0',dark},
+    {label:'Spend',    value:`$${fmt(t.spend)}`,       icon:'💸',dark,trend:12.5,sparklineData:daily,sparklineKey:'spend',    sparklineColor:'#3b82f6'},
+    {label:'Purchases',value:fmtN(t.purchases),        icon:'🛒',dark,trend:8.2, sparklineData:daily,sparklineKey:'purchases',sparklineColor:'#8b5cf6'},
+    {label:'CPR',      value:`$${fmt(t.cpr)}`,         icon:'🎯',dark,trend:-4.3,sparklineData:daily,sparklineKey:'cpr',      sparklineColor:'#ef4444'},
+    {label:'ROAS',     value:`${fmt(t.roas)}x`,        icon:'📈',dark,trend:15.4,sparklineData:daily,sparklineKey:'roas',     sparklineColor:'#10b981'},
+    {label:'Budget/j', value:`$${fmt(t.budget_total)}`,icon:'💰',dark},
   ]
   const best=[...data.campaigns].filter(c=>c.status==='ACTIVE').sort((a,b)=>b.roas-a.roas)[0]
   return (
@@ -304,7 +314,7 @@ function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">{kpis.map((k,i)=><KPICard key={i} {...k}/>)}</div>
       {best&&(
         <div className={`rounded-xl p-6 ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} border shadow-sm`}>
-          <p className={`text-sm font-semibold mb-4 ${dark?'text-gray-300':'text-gray-700'}`}>\ud83c\udfc6 Top Campaign</p>
+          <p className={`text-sm font-semibold mb-4 ${dark?'text-gray-300':'text-gray-700'}`}>🏆 Top Campaign</p>
           <div className="flex flex-wrap gap-x-12 gap-y-4">
             {[['Nom',best.name,'','text'],['ROAS',`${fmt(best.roas)}x`,'roas','metric'],['CPR',`$${fmt(best.cpr)}`,'cpr','metric']].map(([l,v,mk,type])=>(
               <div key={l as string}><p className={`text-xs mb-1 ${dark?'text-gray-500':'text-gray-400'}`}>{l}</p>
@@ -321,7 +331,7 @@ function OverviewTab({ data, dark }: { data: MetaData; dark: boolean }) {
 }
 
 function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
-  const headers=['Nom','Statut','Budget/j','D\u00e9pens\u00e9','Impressions','Couverture','Fr\u00e9quence','CPM','CPC lien','CTR lien%','CTR tous%','Vues page','Co\u00fbt/LPV','ATC','Co\u00fbt/ATC','Abandon','Achats','Taux Conv.%','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
+  const headers=['Nom','Statut','Budget/j','Dépensé','Impressions','Couverture','Fréquence','CPM','CPC lien','CTR lien%','CTR tous%','Vues page','Coût/LPV','ATC','Coût/ATC','Abandon','Achats','Taux Conv.%','CPR','ROAS','Valeur ($)','ThruPlay','Hook Rate%']
   return (
     <div className={`rounded-xl overflow-hidden border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
       <div className="overflow-x-auto"><table className="w-full text-sm">
@@ -365,18 +375,18 @@ function CampaignsTab({ data, dark }: { data: MetaData; dark: boolean }) {
 function PublicitesTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const sortedAds = [...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
   const headers = [
-    'Publicit\u00e9','Campagne','Statut',
-    'D\u00e9pens\u00e9','Impressions','Couverture','Fr\u00e9quence','CPM',
+    'Publicité','Campagne','Statut',
+    'Dépensé','Impressions','Couverture','Fréquence','CPM',
     'CPC lien','CTR lien%','CTR tous%',
-    'Vues page','Co\u00fbt/LPV',
-    'ATC','Co\u00fbt/ATC','Abandon','Taux Conv%',
+    'Vues page','Coût/LPV',
+    'ATC','Coût/ATC','Abandon','Taux Conv%',
     'Achats','CPR','ROAS','Valeur ($)',
     'ThruPlay','Hook Rate%'
   ]
   if(sortedAds.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">\ud83d\udced</div>
-      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucune publicit\u00e9</h3>
+      <div className="text-4xl mb-4">📭</div>
+      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucune publicité</h3>
     </div>
   )
   return (
@@ -433,8 +443,8 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const sortedAds=[...(data.ads||[])].sort((a,b)=>b.roas-a.roas)
   if(sortedAds.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">\ud83c\udfac</div>
-      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucun cr\u00e9atif actif</h3>
+      <div className="text-4xl mb-4">🎬</div>
+      <h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Aucun créatif actif</h3>
     </div>
   )
   return (
@@ -444,19 +454,19 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
           <div className="relative w-full h-44 overflow-hidden">
             {a.thumbnail?<img src={a.thumbnail} alt={a.name} className="w-full h-full object-cover"
               onError={e=>{e.currentTarget.style.display='none';(e.currentTarget.nextSibling as HTMLElement)?.classList?.remove('hidden')}}/>:null}
-            <div className={`${a.thumbnail?'hidden':''} absolute inset-0 flex items-center justify-center ${dark?'bg-[#0f172a]':'bg-gray-100'}`}><span className="text-5xl opacity-30">\ud83c\udfac</span></div>
+            <div className={`${a.thumbnail?'hidden':''} absolute inset-0 flex items-center justify-center ${dark?'bg-[#0f172a]':'bg-gray-100'}`}><span className="text-5xl opacity-30">🎬</span></div>
             <div className="absolute top-2 left-2 flex gap-1.5">
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-black/70 text-white">\u25b6 Video</span>
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-black/70 text-white">▶ Video</span>
               {a.status==='ACTIVE'&&<span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-500/90 text-white">Live</span>}
             </div>
-            {a.roas>10&&<div className="absolute top-2 right-2"><span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-yellow-400/90 text-gray-900">\u2b50 Top</span></div>}
+            {a.roas>10&&<div className="absolute top-2 right-2"><span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-yellow-400/90 text-gray-900">⭐ Top</span></div>}
           </div>
           <div className={`border-t border-b ${dark?'border-gray-800':'border-gray-100'}`}><AdPerformanceChart a={a} dark={dark}/></div>
           <div className="px-4 pb-4 flex-1 flex flex-col">
             <h4 className={`font-bold text-sm my-3 line-clamp-2 ${dark?'text-white':'text-gray-900'}`}>{a.name}</h4>
             <p className={`text-[10px] mb-3 truncate ${dark?'text-gray-500':'text-gray-400'}`}>{a.campaign_name}</p>
             <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-auto text-sm">
-              {[['Spend',`$${fmt(a.spend)}`],['Impressions',fmtN(a.impressions)],['ATC',fmtN(a.atc)],['Co\u00fbt/ATC',`$${fmt(a.spend/Math.max(a.atc,1))}`],['Achats',fmtN(a.purchases)],['CTR',`${fmt(a.ctr_link)}%`]].map(([l,v])=>(
+              {[['Spend',`$${fmt(a.spend)}`],['Impressions',fmtN(a.impressions)],['ATC',fmtN(a.atc)],['Coût/ATC',`$${fmt(a.spend/Math.max(a.atc,1))}`],['Achats',fmtN(a.purchases)],['CTR',`${fmt(a.ctr_link)}%`]].map(([l,v])=>(
                 <div key={l} className="flex flex-col">
                   <span className={`text-[10px] uppercase ${dark?'text-gray-500':'text-gray-400'}`}>{l}</span>
                   <span className={`font-semibold ${dark?'text-gray-200':'text-gray-700'}`}>{v}</span>
@@ -473,17 +483,17 @@ function CreativeTab({ data, dark }: { data: MetaData; dark: boolean }) {
 function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals
   const steps=[
-    {label:'Clics lien',    value:t.clicks_link,bg:'bg-[#fbcfe8]',wTop:100,wBottom:85},
-    {label:'Vues page',     value:t.lpv,        bg:'bg-[#f9a8d4]',wTop:82, wBottom:67},
-    {label:'Ajouts Panier', value:t.atc,        bg:'bg-[#f472b6]',wTop:64, wBottom:49},
-    {label:'Achats',        value:t.purchases,  bg:'bg-[#ec4899]',wTop:46, wBottom:31},
+    {label:'Clics lien',   value:t.clicks_link,bg:'bg-[#fbcfe8]',wTop:100,wBottom:85},
+    {label:'Vues page',    value:t.lpv,        bg:'bg-[#f9a8d4]',wTop:82, wBottom:67},
+    {label:'Ajouts Panier',value:t.atc,        bg:'bg-[#f472b6]',wTop:64, wBottom:49},
+    {label:'Achats',       value:t.purchases,  bg:'bg-[#ec4899]',wTop:46, wBottom:31},
   ]
   const metrics=[
-    {label:'Taux ATC',             value:`${fmt((t.atc/Math.max(t.lpv,1))*100)}%`},
-    {label:'Abandon (ATC-Achats)', value:t.atc-t.purchases},
+    {label:'Taux ATC',            value:`${fmt((t.atc/Math.max(t.lpv,1))*100)}%`},
+    {label:'Abandon (ATC-Achats)',value:t.atc-t.purchases},
     {label:'Taux Conversion',      value:`${fmt((t.purchases/Math.max(t.lpv,1))*100)}%`},
-    {label:'Co\u00fbt/ATC',             value:`$${fmt(t.costPerATC)}`},
-    {label:'Co\u00fbt/LPV',             value:`$${fmt(t.costPerLPV)}`},
+    {label:'Coût/ATC',            value:`$${fmt(t.costPerATC)}`},
+    {label:'Coût/LPV',            value:`$${fmt(t.costPerLPV)}`},
   ]
   return (
     <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
@@ -516,15 +526,15 @@ function FunnelTab({ data, dark }: { data: MetaData; dark: boolean }) {
 
 function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const t=data.totals; const alerts:any[]=[]
-  if(t.cpr>3)       alerts.push({title:'CPR Critique',       desc:`CPR \u00e0 $${fmt(t.cpr)}`,        type:'red',   icon:'\ud83d\udea8'})
-  else if(t.cpr<1.5)alerts.push({title:'CPR Excellent',       desc:`CPR \u00e0 $${fmt(t.cpr)} !`,      type:'green', icon:'\ud83c\udf1f'})
-  if(t.frequency>3) alerts.push({title:'Saturation Audience', desc:`Fr\u00e9quence ${fmt(t.frequency)}`,type:'orange',icon:'\u26a0\ufe0f'})
-  if(t.hookRate<20) alerts.push({title:'Hook Rate Faible',    desc:`${fmt(t.hookRate)}%`,              type:'orange',icon:'\ud83c\udfa3'})
-  if(t.ctr_link<2)  alerts.push({title:'CTR Faible',          desc:`${fmt(t.ctr_link)}%`,              type:'orange',icon:'\ud83d\udc41'})
-  if(t.roas>10)     alerts.push({title:'ROAS Exceptionnel',   desc:`${fmt(t.roas)}x !`,                type:'green', icon:'\ud83d\ude80'})
+  if(t.cpr>3)       alerts.push({title:'CPR Critique',      desc:`CPR à $${fmt(t.cpr)}`,        type:'red',   icon:'🚨'})
+  else if(t.cpr<1.5)alerts.push({title:'CPR Excellent',      desc:`CPR à $${fmt(t.cpr)} !`,      type:'green', icon:'🌟'})
+  if(t.frequency>3) alerts.push({title:'Saturation Audience',desc:`Fréquence ${fmt(t.frequency)}`,type:'orange',icon:'⚠️'})
+  if(t.hookRate<20) alerts.push({title:'Hook Rate Faible',   desc:`${fmt(t.hookRate)}%`,          type:'orange',icon:'🎣'})
+  if(t.ctr_link<2)  alerts.push({title:'CTR Faible',         desc:`${fmt(t.ctr_link)}%`,          type:'orange',icon:'👁'})
+  if(t.roas>10)     alerts.push({title:'ROAS Exceptionnel',  desc:`${fmt(t.roas)}x !`,            type:'green', icon:'🚀'})
   if(alerts.length===0) return (
     <div className={`rounded-xl p-12 text-center border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm`}>
-      <div className="text-4xl mb-4">\u2705</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
+      <div className="text-4xl mb-4">✅</div><h3 className={`text-xl font-bold ${dark?'text-white':'text-gray-900'}`}>Tout est au vert !</h3>
     </div>
   )
   return (
@@ -542,10 +552,10 @@ function AlertsTab({ data, dark }: { data: MetaData; dark: boolean }) {
 function HistoryTab({ data, dark }: { data: MetaData; dark: boolean }) {
   const daily=data.daily||[]; const gridColor=dark?'#374151':'#e5e7eb'; const textColor=dark?'#9ca3af':'#6b7280'
   const charts=[
-    {title:'ROAS',     dataKey:'roas',      color:'#10b981',prefix:'', suffix:'x'},
-    {title:'CPR',      dataKey:'cpr',       color:'#ef4444',prefix:'$',suffix:'' },
-    {title:'D\u00e9penses', dataKey:'spend',     color:'#3b82f6',prefix:'$',suffix:'' },
-    {title:'Achats',   dataKey:'purchases', color:'#8b5cf6',prefix:'', suffix:'' },
+    {title:'ROAS',    dataKey:'roas',     color:'#10b981',prefix:'', suffix:'x'},
+    {title:'CPR',     dataKey:'cpr',      color:'#ef4444',prefix:'$',suffix:'' },
+    {title:'Dépenses', dataKey:'spend',    color:'#3b82f6',prefix:'$',suffix:'' },
+    {title:'Achats',  dataKey:'purchases',color:'#8b5cf6',prefix:'', suffix:'' },
   ]
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -584,7 +594,7 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
   }
   return (
     <div className={`rounded-xl p-8 border ${dark?'bg-[#1e293b] border-gray-800':'bg-white border-gray-200'} shadow-sm max-w-2xl mx-auto`}>
-      <h2 className={`text-2xl font-bold mb-6 ${dark?'text-white':'text-gray-900'}`}>\u2699\ufe0f Param\u00e8tres API</h2>
+      <h2 className={`text-2xl font-bold mb-6 ${dark?'text-white':'text-gray-900'}`}>⚙️ Paramètres API</h2>
       <div className="space-y-6">
         <div>
           <label className={`block text-sm font-semibold mb-2 ${dark?'text-gray-300':'text-gray-700'}`}>Meta Access Token</label>
@@ -598,20 +608,20 @@ function SettingsTab({ dark, metaToken, setMetaToken, metaAdAccountId, setMetaAd
           <p className={`text-xs mt-1 ${dark?'text-gray-500':'text-gray-400'}`}>Laissez vide pour afficher tous les comptes du token.</p>
         </div>
         <button onClick={save} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">Sauvegarder</button>
-        {saved&&<div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 text-sm text-center font-semibold">\u2705 Sauvegard\u00e9 !</div>}
+        {saved&&<div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-600 text-sm text-center font-semibold">✅ Sauvegardé !</div>}
       </div>
     </div>
   )
 }
 
 const TABS = [
-  {id:'overview'    as Tab, label:'\ud83c\udfe0 Vue G\u00e9n\u00e9rale'},
-  {id:'campaigns'   as Tab, label:'\ud83d\udcca Campagnes'   },
-  {id:'publicites'  as Tab, label:'\ud83d\udccb Publicit\u00e9s'  },
-  {id:'creative'    as Tab, label:'\ud83c\udfac Cr\u00e9atifs'    },
-  {id:'funnel'      as Tab, label:'\ud83d\udd3d Funnel'      },
-  {id:'alerts'      as Tab, label:'\ud83d\udd14 Alertes'     },
-  {id:'history'     as Tab, label:'\ud83d\udcc5 Historique'  },
+  {id:'overview'   as Tab, label:'🏠 Vue Générale'},
+  {id:'campaigns'  as Tab, label:'📊 Campagnes'   },
+  {id:'publicites' as Tab, label:'📋 Publicités'  },
+  {id:'creative'   as Tab, label:'🎬 Créatifs'    },
+  {id:'funnel'     as Tab, label:'🔽 Funnel'      },
+  {id:'alerts'     as Tab, label:'🔔 Alertes'     },
+  {id:'history'    as Tab, label:'📅 Historique'  },
 ]
 
 export default function Index() {
@@ -623,7 +633,7 @@ export default function Index() {
   const [metaToken,       setMetaToken]       = useState(()=>localStorage.getItem('metaToken')       ||'')
   const [metaAdAccountId, setMetaAdAccountId] = useState(()=>localStorage.getItem('metaAdAccountId')||'')
 
-  // ⭐ Remplace preset par dateRange
+  // Remplace preset par dateRange
   const [dateRange, setDateRange] = useState<DRValue>({
     since: daysAgoStr(7),
     until: todayStr(),
@@ -640,8 +650,7 @@ export default function Index() {
     setLoading(true); setError(null)
     try {
       const url = new URL('/api/meta', window.location.origin)
-      // ⭐ Utilise since/until ou date_preset
-      if(dateRange.key==='custom') {
+      if (dateRange.key === 'custom') {
         url.searchParams.set('since', dateRange.since)
         url.searchParams.set('until', dateRange.until)
       } else {
@@ -652,7 +661,7 @@ export default function Index() {
       const r = await fetch(url.toString())
       const text = await r.text()
       let j: any
-      try { j=JSON.parse(text) } catch { throw new Error('R\u00e9ponse API invalide.') }
+      try { j=JSON.parse(text) } catch { throw new Error('Réponse API invalide.') }
       if(j.error) throw new Error(j.error)
       setData(j)
     } catch(e:any) {
@@ -672,11 +681,11 @@ export default function Index() {
         <div className="max-w-screen-2xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-blue-500">\u26a1</span>
+              <span className="text-blue-500">⚡</span>
               <span className="font-extrabold tracking-tight">Ads</span>
               <span className={`font-light text-sm ${d?'text-gray-500':'text-gray-400'}`}>Analyse</span>
             </div>
-            <button onClick={()=>setTab('settings')} className={`${btn} ${tab==='settings'?(d?'bg-gray-700':'bg-gray-200'):''}`}>\u2699\ufe0f Param\u00e8tres</button>
+            <button onClick={()=>setTab('settings')} className={`${btn} ${tab==='settings'?(d?'bg-gray-700':'bg-gray-200'):''}`}>⚙️ Paramètres</button>
             <nav className={`hidden lg:flex p-1 rounded-xl ${d?'bg-[#1e293b]':'bg-gray-100/80'} shadow-inner`}>
               {TABS.map(t=>(
                 <button key={t.id} onClick={()=>setTab(t.id)}
@@ -688,10 +697,10 @@ export default function Index() {
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            {/* ⭐ DateRangePicker remplace le select */}
-            <DateRangePicker value={dateRange} onChange={(dr)=>{ setDateRange(dr) }} dark={d}/>
-            <button onClick={fetchData} className={btn}>\ud83d\udd04</button>
-            <button onClick={()=>setDark(!d)} className={btn}>{d?'\u2600\ufe0f':'\ud83c\udf19'}</button>
+            {/* DateRangePicker remplace le select */}
+            <DateRangePicker value={dateRange} onChange={setDateRange} dark={d}/>
+            <button onClick={fetchData} className={btn}>🔄</button>
+            <button onClick={()=>setDark(!d)} className={btn}>{d?'☀️':'🌙'}</button>
           </div>
         </div>
         <div className={`lg:hidden flex overflow-x-auto px-6 py-3 gap-2 border-t ${d?'border-gray-800 bg-[#0f172a]':'border-gray-200 bg-white'} no-scrollbar`}>
@@ -718,7 +727,7 @@ export default function Index() {
             )}
             {!loading&&error&&(
               <div className={`rounded-2xl p-10 text-center ${d?'bg-gray-800':'bg-white'} shadow-sm max-w-lg mx-auto mt-12`}>
-                <div className="text-5xl mb-4">\u274c</div>
+                <div className="text-5xl mb-4">❌</div>
                 <h3 className="text-xl font-bold text-red-400 mb-2">Erreur</h3>
                 <p className={`text-sm ${d?'text-gray-400':'text-gray-500'}`}>{error}</p>
               </div>
