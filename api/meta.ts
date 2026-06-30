@@ -116,9 +116,9 @@ async function fetchFromAccount(accId: string, dateParam: string, tk: string) {
 
 function buildTotals(campaigns: any[]) {
   const zero = {
-    spend:0, purchases:0, revenue:0, impressions:0, reach:0,
-    atc:0, lpv:0, clicks_link:0, thruplay:0, budget_total:0,
-    videoViews:0, initiated_checkout:0
+    spend: 0, purchases: 0, revenue: 0, impressions: 0, reach: 0,
+    atc: 0, lpv: 0, clicks_link: 0, thruplay: 0, budget_total: 0,
+    videoViews: 0, initiated_checkout: 0
   };
   const sum = campaigns.reduce((acc: any, c: any) => ({
     spend:               acc.spend               + c.spend,
@@ -162,7 +162,6 @@ export default async function handler(req: any, res: any) {
 
   if (!token) return res.status(400).json({ error: 'Token manquant.' });
 
-  // ⭐ Supporte time_range (dates personnalisées) OU date_preset
   const dateParam = since && until
     ? `time_range={"since":"${since}","until":"${until}"}`
     : `date_preset=${preset}`;
