@@ -32,7 +32,7 @@ function parseIns(d: any) {
   const atc                = act(acts, 'add_to_cart');
   const lpv                = act(acts, 'landing_page_view');
   const videoViews         = act(acts, 'video_view');
-  const initiated_checkout = act(acts, 'initiate_checkout');  // ⭐ FIX
+  const initiated_checkout = act(acts, 'initiate_checkout');
   const revenue     = val(vals, 'purchase');
   const thruplay    = parseInt(d.video_thruplay_watched_actions?.[0]?.value || '0');
   const hookRate    = impressions > 0 ? (videoViews  / impressions) * 100 : 0;
@@ -45,7 +45,7 @@ function parseIns(d: any) {
     spend, impressions, reach, frequency, cpm,
     ctr_all, ctr_link, clicks_link, cpc_link,
     purchases, atc, lpv, videoViews, revenue,
-    initiated_checkout,  // ⭐ FIX
+    initiated_checkout,
     thruplay, hookRate, cpr, roas, costPerATC, costPerLPV
   };
 }
@@ -61,14 +61,14 @@ async function gfetch(url: string): Promise<any> {
   }
 }
 
-async function fetchFromAccount(accId: string, preset: string, tk: string) {
+async function fetchFromAccount(accId: string, dateParam: string, tk: string) {
   const base = `${GRAPH}/act_${accId}`;
   const [campIns, campList, adIns, adList, dailyRaw] = await Promise.all([
-    gfetch(`${base}/insights?level=campaign&fields=campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=50`),
+    gfetch(`${base}/insights?level=campaign&fields=campaign_id,campaign_name,${INS_FIELDS}&${dateParam}&${tk}&limit=50`),
     gfetch(`${base}/campaigns?fields=id,status,daily_budget&${tk}&limit=50`),
-    gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,campaign_id,campaign_name,${INS_FIELDS}&date_preset=${preset}&${tk}&limit=100`),
+    gfetch(`${base}/insights?level=ad&fields=ad_id,ad_name,campaign_id,campaign_name,${INS_FIELDS}&${dateParam}&${tk}&limit=100`),
     gfetch(`${base}/ads?fields=id,status,adcreatives{thumbnail_url}&${tk}&limit=100`),
-    gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&date_preset=${preset}&time_increment=1&${tk}`),
+    gfetch(`${base}/insights?fields=spend,impressions,actions,action_values&${dateParam}&time_increment=1&${tk}`),
   ]);
 
   if (campIns.error) return { campaigns: [], ads: [], daily: [] };
@@ -116,9 +116,9 @@ async function fetchFromAccount(accId: string, preset: string, tk: string) {
 
 function buildTotals(campaigns: any[]) {
   const zero = {
-    spend: 0, purchases: 0, revenue: 0, impressions: 0, reach: 0,
-    atc: 0, lpv: 0, clicks_link: 0, thruplay: 0, budget_total: 0,
-    videoViews: 0, initiated_checkout: 0  // ⭐ FIX
+    spend:0, purchases:0, revenue:0, impressions:0, reach:0,
+    atc:0, lpv:0, clicks_link:0, thruplay:0, budget_total:0,
+    videoViews:0, initiated_checkout:0
   };
   const sum = campaigns.reduce((acc: any, c: any) => ({
     spend:               acc.spend               + c.spend,
@@ -132,7 +132,7 @@ function buildTotals(campaigns: any[]) {
     thruplay:            acc.thruplay            + c.thruplay,
     budget_total:        acc.budget_total        + (c.daily_budget || 0),
     videoViews:          acc.videoViews          + c.videoViews,
-    initiated_checkout:  acc.initiated_checkout  + c.initiated_checkout,  // ⭐ FIX
+    initiated_checkout:  acc.initiated_checkout  + c.initiated_checkout,
   }), zero);
   return {
     ...sum,
@@ -157,8 +157,15 @@ export default async function handler(req: any, res: any) {
   const rawId     = req.query.ad_account_id || process.env.META_AD_ACCOUNT_ID || '';
   const accountId = rawId.replace(/^act_/, '');
   const preset    = req.query.date_preset   || 'last_7d';
+  const since     = req.query.since as string;
+  const until     = req.query.until as string;
 
   if (!token) return res.status(400).json({ error: 'Token manquant.' });
+
+  // ⭐ Supporte time_range (dates personnalisées) OU date_preset
+  const dateParam = since && until
+    ? `time_range={"since":"${since}","until":"${until}"}`
+    : `date_preset=${preset}`;
 
   const tk = `access_token=${token}`;
 
@@ -168,7 +175,7 @@ export default async function handler(req: any, res: any) {
     let daily:     any[] = [];
 
     if (accountId) {
-      const result = await fetchFromAccount(accountId, preset, tk);
+      const result = await fetchFromAccount(accountId, dateParam, tk);
       campaigns = result.campaigns;
       ads       = result.ads;
       daily     = result.daily;
@@ -179,7 +186,7 @@ export default async function handler(req: any, res: any) {
       if (accountIds.length === 0) throw new Error('Aucun compte trouvé.');
       const allResults = await Promise.all(
         accountIds.map(async (id) => {
-          try { return await fetchFromAccount(id, preset, tk); }
+          try { return await fetchFromAccount(id, dateParam, tk); }
           catch { return { campaigns: [], ads: [], daily: [] }; }
         })
       );
@@ -189,7 +196,6 @@ export default async function handler(req: any, res: any) {
     }
 
     const totals = buildTotals(campaigns);
-
     return res.status(200).json({ totals, campaigns, ads, daily });
 
   } catch (e: any) {
